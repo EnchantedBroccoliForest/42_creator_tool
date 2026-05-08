@@ -12,6 +12,12 @@
 
 import { z } from 'zod';
 
+export const DEFAULT_RIGOR = 'human';
+
+export function normalizeRigor(value) {
+  return value === DEFAULT_RIGOR ? DEFAULT_RIGOR : DEFAULT_RIGOR;
+}
+
 /**
  * Sentinel claimId for criticisms / evidence that are not pinned to any
  * specific claim. Used by the reviewer prompts (see prompts.js), the router
@@ -128,7 +134,7 @@ export const GLOBAL_CLAIM_ID = 'global';
  * @typedef {Object} Run
  * @property {string} runId
  * @property {number} startedAt
- * @property {{question:string, startDate:string, endDate:string, references:string, numberOfOutcomes?:string, rigor?:'machine'|'human'}} input
+ * @property {{question:string, startDate:string, endDate:string, references:string, numberOfOutcomes?:string, rigor?:'human'}} input
  * @property {DraftRecord[]} drafts
  * @property {Criticism[]} criticisms
  * @property {Claim[]} claims
@@ -383,9 +389,9 @@ export const RunSchema = z.object({
     // on runs exported before this field existed — defaulted to '' so older
     // run files still validate against this schema.
     numberOfOutcomes: z.string().optional().default(''),
-    // Rigor selected at draft time. Defaulted to 'machine' so runs exported
-    // before this field existed still validate.
-    rigor: z.enum(['machine', 'human']).optional().default('machine'),
+    // Output profile selected at draft time. Older or unknown values are
+    // normalized to the single supported profile.
+    rigor: z.preprocess(normalizeRigor, z.literal(DEFAULT_RIGOR)),
   }),
   drafts: z.array(DraftRecordSchema),
   criticisms: z.array(CriticismSchema),
@@ -432,7 +438,7 @@ export function createEmptyCost() {
 
 /**
  * Construct a fresh Run from the drafting inputs.
- * @param {{question:string, startDate:string, endDate:string, references:string, numberOfOutcomes?:string, rigor?:'machine'|'human'}} input
+ * @param {{question:string, startDate:string, endDate:string, references:string, numberOfOutcomes?:string, rigor?:'human'}} input
  * @returns {Run}
  */
 export function createRun(input) {
@@ -445,7 +451,7 @@ export function createRun(input) {
       endDate: input?.endDate || '',
       references: input?.references || '',
       numberOfOutcomes: input?.numberOfOutcomes || '',
-      rigor: input?.rigor || 'machine',
+      rigor: normalizeRigor(input?.rigor),
     },
     drafts: [],
     criticisms: [],

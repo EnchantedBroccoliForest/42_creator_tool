@@ -5,7 +5,7 @@ import {
   DEFAULT_REVIEW_MODEL_IDS,
   REVIEW_MODEL_ADD_ORDER,
 } from '../constants/models';
-import { createRun } from '../types/run';
+import { createRun, DEFAULT_RIGOR, normalizeRigor } from '../types/run';
 
 // Exported for direct testing of state transitions. Production code should
 // continue to use `useMarketReducer()` below — this re-export only widens
@@ -14,12 +14,10 @@ export const initialState = {
   // Mode
   mode: 'draft', // 'draft' | 'review' | 'ideating'
 
-  // Rigor governs prompt tone and the post-finalize humanizer:
-  // 'machine' = full reviewer rigor, no humanizer pass.
-  // 'human'   = softened reviewer prompts + humanizer applied to the final card.
-  // Snapshotted onto the Run artifact at draft time so any mid-flow toggle
-  // does not leak into stages that have already started.
-  rigor: 'machine', // 'machine' | 'human'
+  // Output profile is snapshotted onto the Run artifact at draft time so
+  // imports and exports remain explicit even though there is only one
+  // supported profile.
+  rigor: DEFAULT_RIGOR,
 
   // Input
   question: '',
@@ -589,7 +587,7 @@ function rehydrateFromRun(state, run) {
     endDate: run.input?.endDate || '',
     references: run.input?.references || '',
     numberOfOutcomes: run.input?.numberOfOutcomes || '',
-    rigor: run.input?.rigor || 'machine',
+    rigor: normalizeRigor(run.input?.rigor),
     // View-state rebuild. The run-trace panel is authoritative for imported
     // review details; the main UI still renders the latest draft and final JSON.
     draftContent: lastDraft ? lastDraft.content : null,

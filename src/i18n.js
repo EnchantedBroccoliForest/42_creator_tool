@@ -11,19 +11,6 @@ export const LANGUAGE_LABELS = {
 };
 
 const EN = {
-  // Header / output style toggle
-  'header.outputStyle': 'Output style',
-  'header.machineMode': 'Machine Mode',
-  'header.humanMode': 'Human Mode',
-  'header.machineModeTooltip': 'Long-form, highly rigorous output for agents.',
-  'header.humanModeTooltip': 'Concise, human-readable output.',
-  'header.machineModeAria': 'Machine mode: long-form, highly rigorous output for agents',
-  'header.humanModeAria': 'Human mode: concise, human-readable output',
-
-  // Rigor icon toggle
-  'rigor.switchTo': 'Switch to {label}',
-  'rigor.switchToAria': 'Switch output style to {label}',
-
   // Language toggle
   'language.toggleAria': 'Switch language',
   'language.switchTo': 'Switch to {label}',
@@ -228,8 +215,6 @@ const EN = {
   'final.earlyResolutionRisk': 'Early Resolution Risk',
   'final.riskShort': 'Risk',
   'final.marketPeriod': 'Market Period',
-  'final.rigorHuman': 'Produced in Human mode (prompts softened, text polished).',
-  'final.rigorMachine': 'Produced in Machine mode (full rigor).',
   'final.createAnother': 'Create Another Market',
   'final.copyFullSpec': 'Copy full spec',
   'final.showFullSpec': 'Show full resolver spec',
@@ -306,9 +291,6 @@ const EN = {
   'loading.ideateMsg2': 'Scanning for catalysts and trends...',
   'loading.ideateMsg3': 'Generating candidate questions...',
   'loading.ideateMsg4': 'Curating the most interesting ideas...',
-  'loading.rigorHuman': 'Human',
-  'loading.rigorMachine': 'Machine',
-
   // Validation (codes returned by util/draftInput.js)
   'validation.question.required': 'Market question is required.',
   'validation.startDate.required': 'Start date is required.',
@@ -347,19 +329,6 @@ const EN = {
 };
 
 const ZH = {
-  // Header / output style toggle
-  'header.outputStyle': '输出风格',
-  'header.machineMode': '机器模式',
-  'header.humanMode': '人类模式',
-  'header.machineModeTooltip': '面向智能体的长篇、严谨输出。',
-  'header.humanModeTooltip': '简洁易读的输出。',
-  'header.machineModeAria': '机器模式:面向智能体的长篇、严谨输出',
-  'header.humanModeAria': '人类模式:简洁易读的输出',
-
-  // Rigor icon toggle
-  'rigor.switchTo': '切换到{label}',
-  'rigor.switchToAria': '将输出风格切换到{label}',
-
   // Language toggle
   'language.toggleAria': '切换语言',
   'language.switchTo': '切换到{label}',
@@ -564,8 +533,6 @@ const ZH = {
   'final.earlyResolutionRisk': '提前结算风险',
   'final.riskShort': '风险',
   'final.marketPeriod': '市场周期',
-  'final.rigorHuman': '在「人类模式」下产出(提示已柔化、文字已润色)。',
-  'final.rigorMachine': '在「机器模式」下产出(完整严谨)。',
   'final.createAnother': '创建另一个市场',
   'final.copyFullSpec': '复制完整规范',
   'final.showFullSpec': '查看完整决议规范',
@@ -642,11 +609,6 @@ const ZH = {
   'loading.ideateMsg2': '正在扫描催化剂与趋势……',
   'loading.ideateMsg3': '正在生成候选问题……',
   'loading.ideateMsg4': '正在精选最有意思的创意……',
-  // Keep these as English so the existing component test (which renders
-  // without a provider) continues to find them.
-  'loading.rigorHuman': 'Human',
-  'loading.rigorMachine': 'Machine',
-
   // Validation (codes returned by util/draftInput.js)
   'validation.question.required': '请填写市场问题。',
   'validation.startDate.required': '请填写开始日期。',

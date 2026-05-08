@@ -40,7 +40,7 @@ import { RIGOR_RUBRIC } from './constants/rubric.js';
 import { enrichReferencesWithXData } from './pipeline/xapi.js';
 import { parseRiskLevel } from './util/riskLevel.js';
 import { validateFinalMarketJson } from './util/finalMarketJson.js';
-import { createRun } from './types/run.js';
+import { createRun, DEFAULT_RIGOR } from './types/run.js';
 import { assignShortIds } from './report/shortIds.js';
 import {
   DEFAULT_DRAFT_MODEL,
@@ -231,7 +231,7 @@ async function runClaimPipeline(run, draftText, models, options, fetchImpl, cost
  * re-route that folds the resulting criticisms into the routing state.
  */
 async function runReviewStage(run, models, options, cost, callbacks) {
-  const rigor = run.input?.rigor || 'machine';
+  const rigor = run.input?.rigor || DEFAULT_RIGOR;
   const structured = await runStructuredReviewsParallel(
     models.reviewers,
     run.drafts[run.drafts.length - 1].content,
@@ -294,8 +294,8 @@ async function runUpdateStage(run, models, options, fetchImpl, cost, callbacks, 
   const updateResult = await queryModel(
     models.drafter,
     [
-      { role: 'system', content: getSystemPrompt('drafter', run.input?.rigor || 'machine') },
-      { role: 'user', content: buildUpdatePrompt(latestDraft, reviewText, humanFeedback, focusBlock, run.input?.numberOfOutcomes || '', referencesStr, run.input?.rigor || 'machine') },
+      { role: 'system', content: getSystemPrompt('drafter', run.input?.rigor || DEFAULT_RIGOR) },
+      { role: 'user', content: buildUpdatePrompt(latestDraft, reviewText, humanFeedback, focusBlock, run.input?.numberOfOutcomes || '', referencesStr, run.input?.rigor || DEFAULT_RIGOR) },
     ],
     { maxTokens: 8000 },
   );
@@ -319,8 +319,8 @@ async function runRiskStage(run, models, cost, callbacks) {
   const riskResult = await queryModel(
     models.drafter,
     [
-      { role: 'system', content: getSystemPrompt('earlyResolutionAnalyst', run.input?.rigor || 'machine') },
-      { role: 'user', content: buildEarlyResolutionPrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.rigor || 'machine') },
+      { role: 'system', content: getSystemPrompt('earlyResolutionAnalyst', run.input?.rigor || DEFAULT_RIGOR) },
+      { role: 'user', content: buildEarlyResolutionPrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.rigor || DEFAULT_RIGOR) },
     ],
   );
   cost.record('early_resolution', riskResult);
@@ -388,8 +388,8 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
   const finalResult = await queryModel(
     models.drafter,
     [
-      { role: 'system', content: getSystemPrompt('finalizer', run.input?.rigor || 'machine') },
-      { role: 'user', content: buildFinalizePrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.numberOfOutcomes || '', run.input?.rigor || 'machine') },
+      { role: 'system', content: getSystemPrompt('finalizer', run.input?.rigor || DEFAULT_RIGOR) },
+      { role: 'user', content: buildFinalizePrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.numberOfOutcomes || '', run.input?.rigor || DEFAULT_RIGOR) },
     ],
     { temperature: 0.3, maxTokens: DRAFT_MAX_TOKENS },
   );
@@ -398,7 +398,7 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
   const titleResult = await repairMarketQuestionTitle(
     models.drafter,
     parsedFinalJson,
-    run.input?.rigor || 'machine',
+    run.input?.rigor || DEFAULT_RIGOR,
   );
   cost.record('title_repair', titleResult);
   if (titleResult.logEntry) {
@@ -538,11 +538,7 @@ async function _orchestrateInner(config, signal) {
     endDate: input?.endDate || '',
     references: referencesStr,
     numberOfOutcomes: input?.numberOfOutcomes || '',
-    // Rigor is threaded onto the Run input so every stage below reads the
-    // same value the caller selected, not whatever default a downstream
-    // helper might fall back to. Defaults to 'machine' inside createRun()
-    // when omitted, preserving today's CLI / harness behavior.
-    rigor: input?.rigor || 'machine',
+    rigor: input?.rigor || DEFAULT_RIGOR,
   });
 
   let riskLevel = 'unknown';
@@ -570,7 +566,7 @@ async function _orchestrateInner(config, signal) {
     const draftResult = await queryModel(
       models.drafter,
       [
-        { role: 'system', content: getSystemPrompt('drafter', run.input?.rigor || 'machine') },
+        { role: 'system', content: getSystemPrompt('drafter', run.input?.rigor || DEFAULT_RIGOR) },
         {
           role: 'user',
           content: buildDraftPrompt(
@@ -579,7 +575,7 @@ async function _orchestrateInner(config, signal) {
             input?.endDate || '',
             referencesStr,
             input?.numberOfOutcomes || '',
-            run.input?.rigor || 'machine',
+            run.input?.rigor || DEFAULT_RIGOR,
           ),
         },
       ],

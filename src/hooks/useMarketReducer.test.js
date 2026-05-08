@@ -1,42 +1,22 @@
-/**
- * Reducer tests for the rigor field.
- *
- *   - rigor lands on initialState as 'machine' so browser runs use the
- *     protocol-safe default unless the user opts into Human mode.
- *   - SET_FIELD can move rigor between values (the toggle's only writer).
- *   - RESET restores rigor to the initialState default ('machine').
- *   - RUN_IMPORT (rehydrateFromRun) restores the rigor the run was
- *     originally produced under, falling back to 'machine' for runs
- *     exported before the rigor field existed.
- */
-
 import { describe, it, expect } from 'vitest';
 import { reducer, initialState } from './useMarketReducer.js';
-import { createRun } from '../types/run.js';
+import { createRun, DEFAULT_RIGOR } from '../types/run.js';
 import { DEFAULT_REVIEW_MODEL_IDS } from '../constants/models.js';
 
 describe('useMarketReducer rigor field', () => {
-  it('initialState defaults rigor to machine', () => {
-    expect(initialState.rigor).toBe('machine');
+  it('initialState uses the single supported output profile', () => {
+    expect(initialState.rigor).toBe(DEFAULT_RIGOR);
   });
 
-  it('SET_FIELD updates rigor to machine', () => {
-    const human = reducer(initialState, { type: 'SET_FIELD', field: 'rigor', value: 'human' });
-    const next = reducer(human, { type: 'SET_FIELD', field: 'rigor', value: 'machine' });
-    expect(next.rigor).toBe('machine');
+  it('SET_FIELD still updates the stored profile for internal callers', () => {
+    const next = reducer(initialState, { type: 'SET_FIELD', field: 'rigor', value: DEFAULT_RIGOR });
+    expect(next.rigor).toBe(DEFAULT_RIGOR);
   });
 
-  it('SET_FIELD updates rigor back to human', () => {
-    const intermediate = reducer(initialState, { type: 'SET_FIELD', field: 'rigor', value: 'machine' });
-    const next = reducer(intermediate, { type: 'SET_FIELD', field: 'rigor', value: 'human' });
-    expect(next.rigor).toBe('human');
-  });
-
-  it('RESET restores rigor to machine after a Human-mode run', () => {
-    const human = reducer(initialState, { type: 'SET_FIELD', field: 'rigor', value: 'human' });
-    expect(human.rigor).toBe('human');
-    const reset = reducer(human, { type: 'RESET' });
-    expect(reset.rigor).toBe('machine');
+  it('RESET restores the default profile', () => {
+    const changed = reducer(initialState, { type: 'SET_FIELD', field: 'rigor', value: DEFAULT_RIGOR });
+    const reset = reducer(changed, { type: 'RESET' });
+    expect(reset.rigor).toBe(DEFAULT_RIGOR);
   });
 });
 
@@ -174,7 +154,7 @@ describe('review lifecycle config', () => {
 });
 
 describe('RUN_IMPORT rehydrates rigor from the run artifact', () => {
-  it('imports rigor=human from a run produced under Human mode', () => {
+  it('imports the supported profile from a run artifact', () => {
     const importedRun = {
       ...createRun({
         question: 'Q?',
@@ -182,29 +162,15 @@ describe('RUN_IMPORT rehydrates rigor from the run artifact', () => {
         endDate: '2026-12-31',
         references: '',
         numberOfOutcomes: '',
-        rigor: 'human',
+        rigor: DEFAULT_RIGOR,
       }),
     };
     const next = reducer(initialState, { type: 'RUN_IMPORT', run: importedRun });
-    expect(next.rigor).toBe('human');
-    expect(next.currentRun.input.rigor).toBe('human');
+    expect(next.rigor).toBe(DEFAULT_RIGOR);
+    expect(next.currentRun.input.rigor).toBe(DEFAULT_RIGOR);
   });
 
-  it('imports rigor=machine from a run produced under Machine mode', () => {
-    const importedRun = createRun({
-      question: 'Q?',
-      startDate: '2026-01-01',
-      endDate: '2026-12-31',
-      references: '',
-      numberOfOutcomes: '',
-      rigor: 'machine',
-    });
-    const next = reducer(initialState, { type: 'RUN_IMPORT', run: importedRun });
-    expect(next.rigor).toBe('machine');
-  });
-
-  it('falls back to rigor=machine when imported run input lacks rigor (older runs)', () => {
-    // Simulate a run JSON exported before Phase 1 existed.
+  it('falls back to the supported profile when imported run input lacks rigor', () => {
     const olderRun = createRun({
       question: 'Q?',
       startDate: '2026-01-01',
@@ -214,6 +180,6 @@ describe('RUN_IMPORT rehydrates rigor from the run artifact', () => {
     });
     delete olderRun.input.rigor;
     const next = reducer(initialState, { type: 'RUN_IMPORT', run: olderRun });
-    expect(next.rigor).toBe('machine');
+    expect(next.rigor).toBe(DEFAULT_RIGOR);
   });
 });

@@ -47,7 +47,6 @@ import { useAmbientMode } from './hooks/useAmbientMode';
 import ModelSelect from './components/ModelSelect';
 import AmbientModeToggle from './components/AmbientModeToggle';
 import LanguageToggle from './components/LanguageToggle';
-import RigorToggle from './components/RigorToggle';
 import { useLanguage } from './hooks/useLanguage';
 
 /** Lightweight markdown-ish rendering: **bold**, bullet lists, numbered lists */
@@ -454,17 +453,12 @@ function App() {
   const displayedDraftContent = displayedVersion ? displayedVersion.content : draftContent;
   const isViewingLatest = viewingVersionIndex === latestVersionIndex;
 
-  // Read rigor from the Run snapshot so in-flight runs keep showing the
-  // frozen mode selected at draft time.
-  const displayRigor = currentRun?.input?.rigor ?? rigor;
   const resolutionDescriptionMarkdown = finalContent && !finalContent.raw
     ? buildResolutionDescriptionMarkdown(finalContent)
     : '';
 
-  // Human Mode shows a compact "market card" first instead of the full
-  // resolver-style spec. Machine Mode keeps the existing detailed layout.
-  const isHumanFinal = displayRigor === 'human' && finalContent && !finalContent.raw;
-  const finalMarketCard = isHumanFinal
+  const hasStructuredFinal = finalContent && !finalContent.raw;
+  const finalMarketCard = hasStructuredFinal
     ? buildMarketCard(finalContent, {
         riskLevel: earlyResolutionRiskLevel,
         riskText: earlyResolutionRisk,
@@ -713,11 +707,9 @@ function App() {
     const endDateUTC = validation.endDateUTC;
 
     dispatch({ type: 'START_LOADING', phase: 'draft', models: [getModelName(selectedModel)] });
-    // Start a fresh Run artifact; previous run (if any) is discarded. Note
-    // that `rigor` here is the live reducer field (the user's current
-    // selection), and including it in RUN_START is what freezes it onto
-    // run.input.rigor so every later stage reads the snapshot via
-    // currentRunRef.current?.input?.rigor — see handleReview for that read.
+    // Start a fresh Run artifact; previous run (if any) is discarded.
+    // Including the output profile in RUN_START keeps exports explicit and
+    // lets later stages read one stable value from currentRunRef.
     dispatch({
       type: 'RUN_START',
       input: { question, startDate: startDateUTC, endDate: endDateUTC, references, numberOfOutcomes, rigor },
@@ -769,10 +761,8 @@ function App() {
     if (!draftContent) return;
     dispatch({ type: 'START_LOADING', phase: 'review', models: reviewModels.map((id) => getModelName(id)) });
 
-    // Read rigor off the Run snapshot so a mid-flow toggle (which the UI
-    // also disables) can never leak into a stage that has already started.
-    // Fall back to live state for safety; the toggle is locked while a
-    // draft exists, so the two should agree.
+    // Read the output profile off the Run snapshot so every stage in a run
+    // uses the same prompt style.
     const runRigor = currentRunRef.current?.input?.rigor ?? rigor;
 
     try {
@@ -1061,27 +1051,16 @@ function App() {
         parsedContent = { raw: result.content };
       }
 
-      // Humanizer runs only under Human rigor; Machine mode keeps the
-      // finalizer JSON unchanged.
       let finalContent = parsedContent;
-      if (runRigor === 'human') {
-        const humResult = await humanizeFinalJson(selectedModel, parsedContent);
-        recordCost('humanize', humResult);
-        dispatch({
-          type: 'RUN_LOG',
-          stage: 'humanize',
-          level: humResult.logEntry.level,
-          message: humResult.logEntry.message,
-        });
-        finalContent = humResult.humanizedJson;
-      } else {
-        dispatch({
-          type: 'RUN_LOG',
-          stage: 'humanize',
-          level: 'info',
-          message: 'Humanize skipped: Machine rigor selected.',
-        });
-      }
+      const humResult = await humanizeFinalJson(selectedModel, parsedContent);
+      recordCost('humanize', humResult);
+      dispatch({
+        type: 'RUN_LOG',
+        stage: 'humanize',
+        level: humResult.logEntry.level,
+        message: humResult.logEntry.message,
+      });
+      finalContent = humResult.humanizedJson;
 
       const titleResult = await repairMarketQuestionTitle(selectedModel, finalContent, runRigor);
       recordCost('title_repair', titleResult);
@@ -1221,16 +1200,8 @@ function App() {
 
   return (
     <div className={`App ${ambientConfig.classes.join(' ')}`}>
-      {/* Floating header controls — locked once a draft exists so the run
-          keeps the rigor it started with. Downstream stages also snapshot
-          rigor onto the Run artifact (see RUN_START dispatches) so a late
-          toggle cannot leak into an in-flight pipeline. */}
+      {/* Floating header controls. */}
       <div className="top-right-controls">
-        <RigorToggle
-          rigor={rigor}
-          onChange={(value) => dispatch({ type: 'SET_FIELD', field: 'rigor', value })}
-          disabled={anyLoading || !!draftContent}
-        />
         <LanguageToggle />
         <AmbientModeToggle mode={ambientMode} setMode={setAmbientMode} />
       </div>
@@ -1526,7 +1497,7 @@ function App() {
 
                 {loading === 'ideate' && (
                   <Enter className="draft-output-section">
-                    <LLMLoadingState phase="ideate" meta={loadingMeta} rigor={displayRigor} />
+                    <LLMLoadingState phase="ideate" meta={loadingMeta} />
                   </Enter>
                 )}
 
@@ -1613,7 +1584,7 @@ function App() {
               {/* Draft output — stays in Panel 1 right under the button */}
               {mode !== 'ideating' && loading === 'draft' && (
                 <Enter className="draft-output-section">
-                  <LLMLoadingState phase="draft" meta={loadingMeta} rigor={displayRigor} />
+                  <LLMLoadingState phase="draft" meta={loadingMeta} />
                 </Enter>
               )}
               {mode !== 'ideating' && draftContent && (
@@ -2208,7 +2179,7 @@ function App() {
                   {/* Loading state for review */}
                   {loading === 'review' && reviews.length === 0 && (
                     <div className="col-panel col-panel--review">
-                      <LLMLoadingState phase="review" meta={loadingMeta} rigor={displayRigor} />
+                      <LLMLoadingState phase="review" meta={loadingMeta} />
                     </div>
                   )}
 
@@ -2281,7 +2252,7 @@ function App() {
                   <p>{t('placeholder.finalize')}</p>
                 </div>
               ) : loading === 'accept' ? (
-                <LLMLoadingState phase="accept" meta={loadingMeta} rigor={displayRigor} />
+                <LLMLoadingState phase="accept" meta={loadingMeta} />
               ) : (
                 <div className="final-content">
                   <div className="final-header stagger-item" style={{ '--stagger': 0 }}>
@@ -2301,7 +2272,7 @@ function App() {
                       >
                         {copiedId === 'full-output' ? t('common.copied') : t('common.copyAll')}
                       </button>
-                      {isHumanFinal && (
+                      {hasStructuredFinal && (
                         <button
                           className={`copy-btn copy-btn--secondary ${copiedId === 'full-spec' ? 'copy-btn--copied' : ''}`}
                           onClick={() => handleCopy(formatFullSpecCopy(finalContent), 'full-spec')}
@@ -2318,7 +2289,7 @@ function App() {
                         {renderContent(finalContent.raw)}
                       </div>
                     </div>
-                  ) : isHumanFinal && finalMarketCard && !finalMarketCard.isRaw ? (
+                  ) : hasStructuredFinal && finalMarketCard && !finalMarketCard.isRaw ? (
                     <div className="final-doc final-doc--human">
                       <div className="market-card stagger-item" style={{ '--stagger': 1 }}>
                         {finalMarketCard.question && (
@@ -2667,13 +2638,6 @@ function App() {
                       )}
                     </div>
                   )}
-
-                  {/* Rigor provenance footer. Mirrors the chip on
-                      the loading spinner so users can confirm which mode
-                      this market was produced under after the run is done. */}
-                  <p className={`final-doc__rigor-footer final-doc__rigor-footer--${displayRigor}`}>
-                    {displayRigor === 'human' ? t('final.rigorHuman') : t('final.rigorMachine')}
-                  </p>
 
                   <button className="reset-button" onClick={handleReset}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>

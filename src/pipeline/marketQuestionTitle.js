@@ -13,7 +13,7 @@ function isPlainObject(value) {
  * This keeps the market title human-readable without letting the LLM mutate
  * outcomes, resolver rules, timestamps, or edge-case mappings after finalize.
  */
-export async function repairMarketQuestionTitle(model, finalJson, rigor = 'machine', deps = {}) {
+export async function repairMarketQuestionTitle(model, finalJson, rigor = 'human', deps = {}) {
   if (!isPlainObject(finalJson) || 'raw' in finalJson) {
     return {
       finalJson,

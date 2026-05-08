@@ -19,7 +19,7 @@ function formatElapsed(ms) {
   return `${minutes}m ${remaining.toString().padStart(2, '0')}s`;
 }
 
-export default function LLMLoadingState({ phase, meta, rigor }) {
+export default function LLMLoadingState({ phase, meta }) {
   const { t } = useLanguage();
   const [elapsed, setElapsed] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
@@ -27,15 +27,6 @@ export default function LLMLoadingState({ phase, meta, rigor }) {
 
   const phaseKeys = PHASE_KEYS[phase] || PHASE_KEYS.draft;
   const modelNames = meta?.models || [];
-  // Phase 3: surface the rigor chip next to the phase label so the user
-  // (and any QA) can see at a glance which mode the run is operating
-  // under. Only render when rigor is provided — older callers without
-  // rigor wired through stay visually unchanged.
-  const rigorLabel = rigor === 'human'
-    ? t('loading.rigorHuman')
-    : rigor === 'machine'
-      ? t('loading.rigorMachine')
-      : null;
 
   // Elapsed timer — update every second
   useEffect(() => {
@@ -78,11 +69,6 @@ export default function LLMLoadingState({ phase, meta, rigor }) {
       <div className="llm-loading__info">
         <div className="llm-loading__phase">
           {t(phaseKeys.label)}
-          {rigorLabel && (
-            <span className={`llm-loading__rigor llm-loading__rigor--${rigor}`}>
-              {rigorLabel}
-            </span>
-          )}
         </div>
 
         <div className="llm-loading__models">

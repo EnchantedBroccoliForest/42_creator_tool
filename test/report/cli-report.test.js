@@ -28,7 +28,7 @@ function run(args, { stdin, env } = {}) {
   // harness sets one explicitly so a mis-routed gate can't silently
   // pass by being lenient about auth.
   const mergedEnv = { ...process.env, OPENROUTER_API_KEY: 'stub', ...(env || {}) };
-  return spawnSync('node', [CLI, 'report', ...args], {
+  return spawnSync(process.execPath, [CLI, 'report', ...args], {
     input: stdin,
     encoding: 'utf8',
     env: mergedEnv,
@@ -121,7 +121,7 @@ describe('pm-tools report — flag validation', () => {
     delete env.OPENROUTER_API_KEY;
     delete env.VITE_OPENROUTER_API_KEY;
     delete env.VITE_OPENAI_API_KEY;
-    const result = spawnSync('node', [CLI, 'report', '--input', FIXTURE, '--level', 'headline'], {
+    const result = spawnSync(process.execPath, [CLI, 'report', '--input', FIXTURE, '--level', 'headline'], {
       encoding: 'utf8',
       env,
     });

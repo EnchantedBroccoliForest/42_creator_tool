@@ -5,7 +5,7 @@ import { routeClaims } from '../pipeline/route.js';
 import { runStructuredReviewsParallel } from '../pipeline/structuredReview.js';
 import { aggregate } from '../pipeline/aggregate.js';
 import { RIGOR_RUBRIC } from '../constants/rubric.js';
-import { createRun } from '../types/run.js';
+import { createRun, DEFAULT_RIGOR } from '../types/run.js';
 import { assignShortIds } from '../report/shortIds.js';
 import {
   DEFAULT_DRAFT_MODEL,
@@ -22,7 +22,6 @@ export class ReviewRequestError extends Error {
   }
 }
 
-const VALID_RIGOR = new Set(['machine', 'human']);
 const VALID_AGGREGATION = new Set(['majority', 'unanimity', 'judge']);
 const VALID_EVIDENCE = new Set(['none', 'retrieval']);
 const VALID_VERIFIERS = new Set(['off', 'partial', 'full']);
@@ -121,8 +120,7 @@ export async function reviewProposal(request, runtime = {}) {
     throw new ReviewRequestError('proposalText is required and must be a non-empty string');
   }
 
-  const rigor = request?.rigor || request?.input?.rigor || 'machine';
-  assertEnum('rigor', rigor, VALID_RIGOR);
+  const rigor = request?.rigor || request?.input?.rigor || DEFAULT_RIGOR;
 
   const optionsRaw = request?.options || {};
   const aggregation = optionsRaw.aggregation || DEFAULT_OPTIONS.aggregation;
