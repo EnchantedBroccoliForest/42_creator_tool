@@ -39,7 +39,7 @@ The draft is decomposed into atomic **claims** (outcome criteria, timestamps, th
 
 ### Stage 4: Structured Multi-Model Review
 
-Multiple reviewer models — prompted as adversarial, skeptical red-team auditors rather than graders — critique the draft against a **six-item rigor rubric** (`src/constants/rubric.js`) targeting real failure modes of the Outcome Token mechanism: MECE outcomes, objective/machine-readable sources, unambiguous UTC timing, manipulation resistance, meaningful trade phase, and named edge-case fallbacks.
+Multiple reviewer models — prompted as helpful, diligent market reviewers — critique the draft against a **six-item rigor rubric** (`src/constants/rubric.js`) targeting real failure modes of the Outcome Token mechanism: MECE outcomes, objective/machine-readable sources, unambiguous UTC timing, manipulation resistance, meaningful trade phase, and named edge-case fallbacks.
 
 1. **Parallel structured reviews** — each reviewer returns prose critique, per-rubric-item votes (`yes`/`no`/`unsure` with rationale), and typed criticisms (blocker/major/minor/nit).
 2. **Aggregation** — reviewer votes are aggregated via one of three protocols: `majority`, `unanimity`, or `judge` (an additional LLM renders the final verdict and resolves ties / overrides).
@@ -55,17 +55,11 @@ The original drafting model incorporates the aggregated review, claim-level rout
 - **Early-resolution risk analysis** — a lightweight analyst pass (`src/util/riskLevel.js` + prompts) estimates whether the market could collapse to certainty well before the end date, since 42.space's bonding curve depends on a meaningful trade phase.
 - **Finalize** — the draft is converted into structured JSON matching the Outcome Token spawn shape: an array of outcomes (each with its own resolution criteria), start/end times in UTC, short description, full resolution rules, and edge cases. All sections are copyable to clipboard.
 
-### Rigor modes: Machine vs Human
+### Output Style
 
-Every run is tagged with a `rigor` of `machine` (the default) or `human`. The toggle lives at the top of the Setup panel and is locked once a draft exists, so a single run keeps the rigor it started with. The selection is also stamped onto the Run artifact (`run.input.rigor`) so an exported / re-imported run renders under its original rigor.
+The pipeline uses one compact, trader-facing output style. Reviewer prompts stay helpful and concrete, structured reviews keep `reviewProse` short, and draft/update/finalize prompts prefer concise language without weakening 42.space protocol checks. In the UI, the finalizer's structured JSON is followed by a **humanizer** pass that rewrites prose fields (`refinedQuestion`, `outcomes[i].winCondition`, `outcomes[i].resolutionCriteria`, `shortDescription`, `fullResolutionRules`, `edgeCases`) to remove AI-writing tells while keeping structural fields (outcome names, URLs, ISO timestamps, thresholds) byte-for-byte stable.
 
-- **Machine** — today's pipeline. The reviewer / structured-reviewer / aggregation-judge prompts use the full adversarial framing ("attack harder", "guilty until proven innocent"), the rubric voting discipline pushes toward `no` on borderline calls, and the post-finalize humanizer **does not run**. Use this when you need the strictest possible output discipline. The committed `eval/baseline.json` is generated under Machine — `npm run eval:check` would surface a regression here as drift in the Machine path.
-
-- **Human** — softer reviewer prompts (helpful-but-diligent rather than red-team), shorter `reviewProse` (≤ 4 sentences), `unsure`-leaning rubric votes when the draft is silent, and concise drafter / updater / finalizer riders. After the finalizer produces the final JSON, the **humanizer** pass rewrites the prose fields (`refinedQuestion`, `outcomes[i].winCondition`, `outcomes[i].resolutionCriteria`, `shortDescription`, `fullResolutionRules`, `edgeCases`) to remove AI-writing tells while keeping all structural fields (outcome names, URLs, ISO timestamps, thresholds) byte-for-byte stable. The humanizer runs **only in Human mode and only from the UI** — the headless CLI and eval harness never invoke it, so the eval baseline stays stable.
-
-The `PROTOCOL_CONTEXT` block — 42's hard mechanism rules — is identical in both modes; rigor only changes the *tone of the critique*, not the *rules of the protocol*. Both modes still produce the full claim → verify → route → review → aggregate → update → risk → source-check → finalize pipeline; nothing about the gates or the structured Run artifact differs between rigors.
-
-The CLI accepts `--rigor=machine|human` (default `machine`); `eval/run.js` accepts the same flag for ad-hoc comparison runs but rejects `--rigor=human` together with `--check-regression` / `--baseline` so a Human run cannot quietly overwrite the Machine baseline.
+The `PROTOCOL_CONTEXT` block remains the hard mechanism contract for every prompt. The pipeline still runs the full claim → verify → route → review → aggregate → update → risk → source-check → finalize sequence; only the old selectable output-style split has been removed.
 
 ## CLI
 
@@ -94,7 +88,7 @@ npx pm-tools validate < run.json
 echo '{"input":{"question":"...","startDate":"...","endDate":"..."}}' | npx pm-tools draft
 ```
 
-Key flags: `--drafter`, `--reviewers`, `--aggregation` (majority/unanimity/judge), `--escalation` (always/selective), `--rigor` (machine/human, default machine), `--feedback`, `--output`, `--format` (json/report/html), `--level` (headline/report/full), `--no-finalize`, `--no-review`, `--timeout`.
+Key flags: `--drafter`, `--reviewers`, `--aggregation` (majority/unanimity/judge), `--escalation` (always/selective), `--feedback`, `--output`, `--format` (json/report/html), `--level` (headline/report/full), `--no-finalize`, `--no-review`, `--timeout`.
 
 ## HTTP Review Service
 

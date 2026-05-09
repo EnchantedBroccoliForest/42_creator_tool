@@ -14,13 +14,6 @@ export const initialState = {
   // Mode
   mode: 'draft', // 'draft' | 'review' | 'ideating'
 
-  // Rigor governs prompt tone and the post-finalize humanizer:
-  // 'machine' = full reviewer rigor, no humanizer pass.
-  // 'human'   = softened reviewer prompts + humanizer applied to the final card.
-  // Snapshotted onto the Run artifact at draft time so any mid-flow toggle
-  // does not leak into stages that have already started.
-  rigor: 'machine', // 'machine' | 'human'
-
   // Input
   question: '',
   startDate: '',
@@ -589,7 +582,6 @@ function rehydrateFromRun(state, run) {
     endDate: run.input?.endDate || '',
     references: run.input?.references || '',
     numberOfOutcomes: run.input?.numberOfOutcomes || '',
-    rigor: run.input?.rigor || 'machine',
     // View-state rebuild. The run-trace panel is authoritative for imported
     // review details; the main UI still renders the latest draft and final JSON.
     draftContent: lastDraft ? lastDraft.content : null,

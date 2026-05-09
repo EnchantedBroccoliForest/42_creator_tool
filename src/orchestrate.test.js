@@ -54,7 +54,7 @@ function makeQuery({ claimsContent, entailmentContent, onEarlyResolution, finalJ
 
   const query = async (_model, messages) => {
     const system = messages?.[0]?.content;
-    if (system === getSystemPrompt('drafter', 'machine')) {
+    if (system === getSystemPrompt('drafter')) {
       calls.drafter += 1;
       const draft = `## Question\nWill Team A win?\n\n## Resolution Rules\nResolve from ${SOURCE_URL}.`;
       return usage(calls.drafter === 1 ? draft : `${draft}\n\nUpdated.`);
@@ -63,7 +63,7 @@ function makeQuery({ claimsContent, entailmentContent, onEarlyResolution, finalJ
       calls.claimExtractor += 1;
       return usage(claimsContent);
     }
-    if (system === getSystemPrompt('structuredReviewer', 'machine')) {
+    if (system === getSystemPrompt('structuredReviewer')) {
       calls.structuredReviewer += 1;
       return usage(JSON.stringify(passingReview()));
     }
@@ -73,12 +73,12 @@ function makeQuery({ claimsContent, entailmentContent, onEarlyResolution, finalJ
         { id: 'claim.source.0', entailment: 'entailed', rationale: 'The URL appears in the draft.' },
       ]));
     }
-    if (system === getSystemPrompt('earlyResolutionAnalyst', 'machine')) {
+    if (system === getSystemPrompt('earlyResolutionAnalyst')) {
       calls.earlyResolutionAnalyst += 1;
       onEarlyResolution?.();
       return usage('Risk rating: Low\nNo early-resolution issue.');
     }
-    if (system === getSystemPrompt('finalizer', 'machine')) {
+    if (system === getSystemPrompt('finalizer')) {
       calls.finalizer += 1;
       return usage(JSON.stringify(finalJsonOverride || finalJson()));
     }
@@ -107,7 +107,6 @@ describe('orchestrate gates', () => {
         startDate: '2026-01-01T00:00:00Z',
         endDate: '2026-01-31T23:59:59Z',
         references: SOURCE_URL,
-        rigor: 'machine',
       },
       models: {
         drafter: 'mock/drafter',
@@ -149,7 +148,6 @@ describe('orchestrate gates', () => {
         startDate: '2026-01-01T00:00:00Z',
         endDate: '2026-01-31T23:59:59Z',
         references: `${SOURCE_URL}\n${BACKUP_SOURCE_URL}`,
-        rigor: 'machine',
       },
       models: {
         drafter: 'mock/drafter',
@@ -195,7 +193,6 @@ describe('orchestrate gates', () => {
           startDate: '2026-01-01T00:00:00Z',
           endDate: '2026-01-31T23:59:59Z',
           references: SOURCE_URL,
-          rigor: 'machine',
         },
         models: {
           drafter: 'mock/drafter',
@@ -232,7 +229,6 @@ describe('orchestrate gates', () => {
         startDate: '2026-01-01T00:00:00Z',
         endDate: '2026-01-31T23:59:59Z',
         references: '',
-        rigor: 'machine',
       },
       models: {
         drafter: 'mock/drafter',
@@ -274,7 +270,6 @@ describe('orchestrate gates', () => {
         startDate: '2026-01-01T00:00:00Z',
         endDate: '2026-01-31T23:59:59Z',
         references: SOURCE_URL,
-        rigor: 'machine',
       },
       models: {
         drafter: 'mock/drafter',

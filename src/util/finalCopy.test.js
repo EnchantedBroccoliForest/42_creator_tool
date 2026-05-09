@@ -29,7 +29,7 @@ const FINAL_MARKET = {
     '1. Source unavailable at close resolves No.\n2. A recount after close does not change the result.\n3. A court order before close pauses certification.\n4. A typo corrected before close uses the corrected text.\n5. A partial certification is not final.\n6. A duplicate page should be ignored.',
 };
 
-describe('formatFullSpecCopy (Machine Mode default)', () => {
+describe('formatFullSpecCopy', () => {
   it('emits the verbose resolver-style bundle byte-identically to the prior inline implementation', () => {
     const expected = [
       `Question: ${FINAL_MARKET.refinedQuestion}`,
@@ -54,7 +54,7 @@ describe('formatFullSpecCopy (Machine Mode default)', () => {
     expect(formatFullSpecCopy('not an object')).toBe('');
   });
 
-  it('uses Wins if "N/A" placeholder when an outcome lacks a win condition (machine compatibility)', () => {
+  it('uses Wins if "N/A" placeholder when an outcome lacks a win condition', () => {
     const text = formatFullSpecCopy({
       ...FINAL_MARKET,
       outcomes: [{ name: 'Yes', winCondition: '', resolutionCriteria: 'Source page.' }],
@@ -64,28 +64,26 @@ describe('formatFullSpecCopy (Machine Mode default)', () => {
   });
 });
 
-// Cross-check that the Human-mode Copy All path (formatMarketCardCopy) is
-// strictly more compact than the Machine-mode bundle, and that it does not
-// leak the full resolution rules verbatim.
-describe('Human Mode Copy All vs Machine Mode Copy All', () => {
-  it('Human compact copy is shorter than the Machine full-spec copy', () => {
+// Cross-check that the compact Copy All path is shorter than the full spec
+// bundle and does not leak the full resolution rules verbatim.
+describe('compact Copy All vs full-spec copy', () => {
+  it('compact copy is shorter than the full-spec copy', () => {
     const card = buildMarketCard(FINAL_MARKET, {
       riskLevel: 'low',
       riskText: 'Anchored to one official source.',
     });
-    const humanCopy = formatMarketCardCopy(card);
-    const machineCopy = formatFullSpecCopy(FINAL_MARKET);
+    const compactCopy = formatMarketCardCopy(card);
+    const fullSpecCopy = formatFullSpecCopy(FINAL_MARKET);
 
-    expect(humanCopy.length).toBeLessThan(machineCopy.length);
+    expect(compactCopy.length).toBeLessThan(fullSpecCopy.length);
   });
 
-  it('Human compact copy does not include full resolution rules beyond the capped bullets', () => {
+  it('compact copy does not include full resolution rules beyond the capped bullets', () => {
     const card = buildMarketCard(FINAL_MARKET);
-    const humanCopy = formatMarketCardCopy(card);
+    const compactCopy = formatMarketCardCopy(card);
 
-    // The 6th rule is dropped by the cap; verify it never leaks into the
-    // Human compact copy. The 5th rule should still appear (within the cap).
-    expect(humanCopy).not.toContain('Archive raw evidence in the audit notes.');
-    expect(humanCopy).toContain('+1 more settlement rule in full spec.');
+    // The 6th rule is dropped by the cap; the 5th rule should still appear.
+    expect(compactCopy).not.toContain('Archive raw evidence in the audit notes.');
+    expect(compactCopy).toContain('+1 more settlement rule in full spec.');
   });
 });

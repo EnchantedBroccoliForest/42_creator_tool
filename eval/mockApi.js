@@ -118,19 +118,8 @@ export function createMockQueryModel(fixture, { onWarn } = {}) {
 
   function classify(systemPrompt) {
     if (typeof systemPrompt !== 'string') return 'unknown';
-    // Phase 4: try the Machine bucket first (the canonical role set;
-    // any fixture captured pre-rigor was produced under Machine), then
-    // fall back to Human on miss. The fallback exists so an ad-hoc
-    // eval run under `--rigor=human` (Phase 5) doesn't return empty
-    // for every call when Human prompts diverge from Machine. For the
-    // committed fixtures, which always run under Machine, only the
-    // first pass ever fires.
-    const machineEntries = Object.entries(SYSTEM_PROMPTS.machine);
-    for (const [role, value] of machineEntries) {
-      if (systemPrompt === value) return role;
-    }
-    const humanEntries = Object.entries(SYSTEM_PROMPTS.human);
-    for (const [role, value] of humanEntries) {
+    const entries = Object.entries(SYSTEM_PROMPTS);
+    for (const [role, value] of entries) {
       if (systemPrompt === value) return role;
     }
     return 'unknown';

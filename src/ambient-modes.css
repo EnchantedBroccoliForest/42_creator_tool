@@ -224,7 +224,6 @@
 
 /* Tooltips — base style uses near-black #120917 which produces dark text on
    dark background in light mode. Swap to a warm cream surface. */
-.App.ambient-light .rigor-toggle__btn[data-tooltip]::after,
 .App.ambient-light .model-badge[data-tooltip]::after {
   background: rgba(255, 253, 248, 0.95);
   color: var(--text-1);

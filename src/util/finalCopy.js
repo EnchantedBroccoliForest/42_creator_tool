@@ -1,9 +1,5 @@
-// Verbose "full spec" clipboard text used by the final panel:
-//   - Machine Mode default Copy All
-//   - Human Mode "Copy full spec" secondary button
-//
-// Kept byte-identical to the prior inline implementation in App.jsx so the
-// Machine Mode copy output is unchanged.
+// Verbose "full spec" clipboard text used by the final panel's secondary
+// copy action.
 export function formatFullSpecCopy(finalContent) {
   if (!finalContent || typeof finalContent !== 'object') return '';
   return [

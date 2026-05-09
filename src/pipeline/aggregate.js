@@ -178,12 +178,9 @@ export function aggregateUnanimity(rubric, allVotes) {
  * @param {import('../constants/rubric').RubricItem[]} rubric
  * @param {Array<object>} allVotes
  * @param {string} judgeModelId   OpenRouter model id used for the judge
- * @param {'machine'|'human'} [rigor]  selects the rigor variant of the judge
- *                                     system prompt and the user-prompt
- *                                     builder.
  * @returns {Promise<JudgeAggregationResult>}
  */
-export async function aggregateJudge(rubric, allVotes, judgeModelId, rigor = 'machine') {
+export async function aggregateJudge(rubric, allVotes, judgeModelId) {
   const baseline = aggregateMajority(rubric, allVotes);
   const { aggregate, accumulate } = createUsageAggregator();
 
@@ -192,10 +189,10 @@ export async function aggregateJudge(rubric, allVotes, judgeModelId, rigor = 'ma
     const r = await queryModel(
       judgeModelId,
       [
-        { role: 'system', content: getSystemPrompt('aggregationJudge', rigor) },
+        { role: 'system', content: getSystemPrompt('aggregationJudge') },
         {
           role: 'user',
-          content: buildJudgeAggregatorPrompt(rubric, baseline.checklist, rigor),
+          content: buildJudgeAggregatorPrompt(rubric, baseline.checklist),
         },
       ],
       { temperature: 0.2, maxTokens: 1500 }
@@ -226,10 +223,10 @@ export async function aggregateJudge(rubric, allVotes, judgeModelId, rigor = 'ma
       const r2 = await queryModel(
         judgeModelId,
         [
-          { role: 'system', content: getSystemPrompt('aggregationJudge', rigor) },
+          { role: 'system', content: getSystemPrompt('aggregationJudge') },
           {
             role: 'user',
-            content: buildStrictJudgeAggregatorRetryPrompt(rubric, baseline.checklist, rigor),
+            content: buildStrictJudgeAggregatorRetryPrompt(rubric, baseline.checklist),
           },
         ],
         { temperature: 0.1, maxTokens: 1500 }
@@ -306,12 +303,9 @@ export async function aggregateJudge(rubric, allVotes, judgeModelId, rigor = 'ma
  * @param {import('../constants/rubric').RubricItem[]} rubric
  * @param {Array<object>} allVotes
  * @param {string} [judgeModelId]   required when protocol === 'judge'
- * @param {'machine'|'human'} [rigor]  rigor variant used by the judge
- *                                     protocol; ignored by majority /
- *                                     unanimity (which are pure tally).
  * @returns {Promise<JudgeAggregationResult>}
  */
-export async function aggregate(protocol, rubric, allVotes, judgeModelId, rigor = 'machine') {
+export async function aggregate(protocol, rubric, allVotes, judgeModelId) {
   const empty = {
     usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     wallClockMs: 0,
@@ -336,7 +330,7 @@ export async function aggregate(protocol, rubric, allVotes, judgeModelId, rigor 
         },
       };
     }
-    return aggregateJudge(rubric, allVotes, judgeModelId, rigor);
+    return aggregateJudge(rubric, allVotes, judgeModelId);
   }
   // Default / 'majority'
   return { aggregation: aggregateMajority(rubric, allVotes), ...empty };

@@ -13,7 +13,7 @@ function isPlainObject(value) {
  * This keeps the market title human-readable without letting the LLM mutate
  * outcomes, resolver rules, timestamps, or edge-case mappings after finalize.
  */
-export async function repairMarketQuestionTitle(model, finalJson, rigor = 'machine', deps = {}) {
+export async function repairMarketQuestionTitle(model, finalJson, deps = {}) {
   if (!isPlainObject(finalJson) || 'raw' in finalJson) {
     return {
       finalJson,
@@ -27,7 +27,7 @@ export async function repairMarketQuestionTitle(model, finalJson, rigor = 'machi
     };
   }
 
-  const initial = validateMarketQuestionTitle(finalJson.refinedQuestion, rigor);
+  const initial = validateMarketQuestionTitle(finalJson.refinedQuestion);
   if (initial.valid) {
     return {
       finalJson: {
@@ -57,7 +57,7 @@ export async function repairMarketQuestionTitle(model, finalJson, rigor = 'machi
         },
         {
           role: 'user',
-          content: buildMarketQuestionTitleRepairPrompt(finalJson, rigor),
+          content: buildMarketQuestionTitleRepairPrompt(finalJson),
         },
       ],
       { temperature: 0.2, maxTokens: 500 },
@@ -77,7 +77,7 @@ export async function repairMarketQuestionTitle(model, finalJson, rigor = 'machi
 
   const parsed = tryParseJsonObject(result?.content);
   const candidate = parsed?.refinedQuestion;
-  const repaired = validateMarketQuestionTitle(candidate, rigor);
+  const repaired = validateMarketQuestionTitle(candidate);
 
   if (!repaired.valid) {
     return {

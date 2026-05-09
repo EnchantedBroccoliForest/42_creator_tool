@@ -32,13 +32,6 @@ DRAFT FLAGS
   --start            Start date, ISO 8601 (required)
   --end              End date, ISO 8601 (required)
   --references       Resolution source URLs (comma-separated)
-  --rigor            machine | human (default: machine). Machine uses
-                     today's adversarial reviewer prompts and skips the
-                     post-finalize humanizer. Human softens reviewer
-                     wording, prefers concise drafts, and runs the
-                     humanizer over the final card. The eval baseline
-                     is pinned to Machine; --rigor=human is for ad-hoc
-                     comparison runs and is not gated by CI.
   --drafter          OpenRouter model ID for drafting
   --reviewers        Comma-separated reviewer model IDs
   --aggregation      majority | unanimity | judge
@@ -93,7 +86,6 @@ function parseCliArgs() {
       start: { type: 'string' },
       end: { type: 'string' },
       references: { type: 'string' },
-      rigor: { type: 'string' },
       drafter: { type: 'string' },
       reviewers: { type: 'string' },
       aggregation: { type: 'string' },
@@ -198,18 +190,6 @@ async function cmdDraft(values, stdinConfig) {
     process.exit(2);
   }
 
-  // Default to 'machine' so headless / scripted
-  // callers retain today's behavior — Human mode is opt-in. CLI flag wins
-  // over stdin to match the rest of this command's precedence rules; an
-  // unrecognised value is rejected so a typo (e.g. --rigor=Human) cannot
-  // silently downgrade the run to the default.
-  const rawRigor = values.rigor || baseInput.rigor || 'machine';
-  if (rawRigor !== 'machine' && rawRigor !== 'human') {
-    process.stderr.write(`Error: --rigor must be 'machine' or 'human' (got '${rawRigor}').\n`);
-    process.exit(2);
-  }
-  const rigor = rawRigor;
-
   // Build references from CLI flag or stdin.
   let references = baseInput.references;
   if (values.references) {
@@ -232,7 +212,6 @@ async function cmdDraft(values, stdinConfig) {
       startDate,
       endDate,
       references: references || [],
-      rigor,
     },
     models: {
       drafter: values.drafter || baseModels.drafter,
@@ -293,7 +272,7 @@ async function cmdDraft(values, stdinConfig) {
     process.off('SIGINT', sigHandler);
   }
 
-  // Output. JSON by default (machine consumption); switch to the narrative
+  // Output. JSON by default; switch to the narrative
   // report renderer when --level / --min-severity / --expand are present
   // or --format=report|html.
   const output = await formatRun(run, values);

@@ -1,7 +1,4 @@
-const TITLE_LIMITS = Object.freeze({
-  machine: 90,
-  human: 70,
-});
+const TITLE_LIMIT = 70;
 
 const DISALLOWED_PATTERNS = Object.freeze([
   {
@@ -25,34 +22,32 @@ const DISALLOWED_PATTERNS = Object.freeze([
   },
 ]);
 
-// Human-only patterns — stiff resolver phrasing that reads fine in a Machine
-// Mode question but feels bureaucratic to a trader-facing audience. These
-// run *in addition to* the shared patterns above when rigor === 'human'.
+// Stiff resolver phrasing that feels bureaucratic to a trader-facing audience.
 // Kept conservative so legitimate trader questions still pass.
-const HUMAN_DISALLOWED_PATTERNS = Object.freeze([
+const TRADER_TITLE_DISALLOWED_PATTERNS = Object.freeze([
   {
     re: /\bofficial\s+(?:result|results|source|sources)\b/i,
-    reason: 'human-mode title should not lean on resolver-style "official source/result" phrasing',
+    reason: 'title should not lean on resolver-style "official source/result" phrasing',
   },
   {
     re: /\bas of\b/i,
-    reason: 'human-mode title should not include resolver "as of" cutoffs',
+    reason: 'title should not include resolver "as of" cutoffs',
   },
   {
     re: /\bby\s+(?:the\s+)?market\s+close\b/i,
-    reason: 'human-mode title should not reference "market close"',
+    reason: 'title should not reference "market close"',
   },
   {
     re: /\bbased\s+on\b/i,
-    reason: 'human-mode title should not start a resolver clause with "based on"',
+    reason: 'title should not start a resolver clause with "based on"',
   },
   {
     re: /\bconfirmed\s+by\b/i,
-    reason: 'human-mode title should not include "confirmed by" resolver phrasing',
+    reason: 'title should not include "confirmed by" resolver phrasing',
   },
   {
     re: /\bpublished\s+by\s+the\s+source\b/i,
-    reason: 'human-mode title should not include "published by the source" resolver phrasing',
+    reason: 'title should not include "published by the source" resolver phrasing',
   },
 ]);
 
@@ -60,13 +55,13 @@ function oneLine(value) {
   return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
 }
 
-export function getMarketQuestionTitleLimit(rigor = 'machine') {
-  return Object.hasOwn(TITLE_LIMITS, rigor) ? TITLE_LIMITS[rigor] : TITLE_LIMITS.machine;
+export function getMarketQuestionTitleLimit() {
+  return TITLE_LIMIT;
 }
 
-export function validateMarketQuestionTitle(title, rigor = 'machine') {
+export function validateMarketQuestionTitle(title) {
   const normalized = oneLine(title);
-  const maxChars = getMarketQuestionTitleLimit(rigor);
+  const maxChars = getMarketQuestionTitleLimit();
   const reasons = [];
 
   if (!normalized) {
@@ -86,10 +81,8 @@ export function validateMarketQuestionTitle(title, rigor = 'machine') {
     if (re.test(normalized)) reasons.push(reason);
   }
 
-  if (rigor === 'human') {
-    for (const { re, reason } of HUMAN_DISALLOWED_PATTERNS) {
-      if (re.test(normalized)) reasons.push(reason);
-    }
+  for (const { re, reason } of TRADER_TITLE_DISALLOWED_PATTERNS) {
+    if (re.test(normalized)) reasons.push(reason);
   }
 
   return {

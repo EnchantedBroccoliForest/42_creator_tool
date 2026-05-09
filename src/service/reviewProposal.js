@@ -22,7 +22,6 @@ export class ReviewRequestError extends Error {
   }
 }
 
-const VALID_RIGOR = new Set(['machine', 'human']);
 const VALID_AGGREGATION = new Set(['majority', 'unanimity', 'judge']);
 const VALID_EVIDENCE = new Set(['none', 'retrieval']);
 const VALID_VERIFIERS = new Set(['off', 'partial', 'full']);
@@ -121,9 +120,6 @@ export async function reviewProposal(request, runtime = {}) {
     throw new ReviewRequestError('proposalText is required and must be a non-empty string');
   }
 
-  const rigor = request?.rigor || request?.input?.rigor || 'machine';
-  assertEnum('rigor', rigor, VALID_RIGOR);
-
   const optionsRaw = request?.options || {};
   const aggregation = optionsRaw.aggregation || DEFAULT_OPTIONS.aggregation;
   const evidenceMode = optionsRaw.evidence || DEFAULT_OPTIONS.evidence;
@@ -146,7 +142,6 @@ export async function reviewProposal(request, runtime = {}) {
     endDate: request?.endDate || request?.input?.endDate || '',
     references,
     numberOfOutcomes: request?.numberOfOutcomes || request?.input?.numberOfOutcomes || '',
-    rigor,
   });
   const callbacks = runtime.callbacks;
   const cost = createCostTracker();
@@ -188,7 +183,7 @@ export async function reviewProposal(request, runtime = {}) {
       }));
       log(run, 'verify', 'info', `Verification structural-only (${run.verification.length} claim(s)).`, callbacks);
     } else {
-      const verifyResult = await verifyClaims(run.claims, proposalText, models.drafter, rigor);
+      const verifyResult = await verifyClaims(run.claims, proposalText, models.drafter);
       cost.record('verify', verifyResult);
       run.verification = verifyResult.verifications;
       if (verifyResult.logEntry) {
@@ -233,7 +228,6 @@ export async function reviewProposal(request, runtime = {}) {
       proposalText,
       RIGOR_RUBRIC,
       run.input.numberOfOutcomes || '',
-      rigor,
     );
     for (const review of structuredReviews) {
       if (review.usage) cost.record('review', { usage: review.usage, wallClockMs: review.wallClockMs });
@@ -249,7 +243,7 @@ export async function reviewProposal(request, runtime = {}) {
       run.criticisms = successfulReviews.flatMap((review) => review.criticisms);
       const allVotes = successfulReviews.flatMap((review) => review.rubricVotes);
       const judgeModel = aggregation === 'judge' ? models.judge : undefined;
-      const aggregationResult = await aggregate(aggregation, RIGOR_RUBRIC, allVotes, judgeModel, rigor);
+      const aggregationResult = await aggregate(aggregation, RIGOR_RUBRIC, allVotes, judgeModel);
       if (aggregationResult.usage && aggregationResult.usage.totalTokens > 0) {
         cost.record('aggregation', {
           usage: aggregationResult.usage,

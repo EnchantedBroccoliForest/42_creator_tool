@@ -18,7 +18,7 @@ describe('repairMarketQuestionTitle', () => {
   it('skips unstructured finalizer output', async () => {
     const query = vi.fn();
 
-    const result = await repairMarketQuestionTitle('m', { raw: 'not-json' }, 'human', { queryModel: query });
+    const result = await repairMarketQuestionTitle('m', { raw: 'not-json' }, { queryModel: query });
 
     expect(query).not.toHaveBeenCalled();
     expect(result.finalJson).toEqual({ raw: 'not-json' });
@@ -28,7 +28,7 @@ describe('repairMarketQuestionTitle', () => {
   it('does not call the model when the title already passes', async () => {
     const query = vi.fn();
 
-    const result = await repairMarketQuestionTitle('m', SAMPLE_FINAL, 'human', { queryModel: query });
+    const result = await repairMarketQuestionTitle('m', SAMPLE_FINAL, { queryModel: query });
 
     expect(query).not.toHaveBeenCalled();
     expect(result.finalJson.refinedQuestion).toBe(SAMPLE_FINAL.refinedQuestion);
@@ -48,7 +48,7 @@ describe('repairMarketQuestionTitle', () => {
       wallClockMs: 25,
     });
 
-    const result = await repairMarketQuestionTitle('m', verbose, 'human', { queryModel: query });
+    const result = await repairMarketQuestionTitle('m', verbose, { queryModel: query });
 
     expect(query).toHaveBeenCalledTimes(1);
     expect(result.finalJson).toEqual({
@@ -71,7 +71,7 @@ describe('repairMarketQuestionTitle', () => {
       wallClockMs: 25,
     });
 
-    const result = await repairMarketQuestionTitle('m', verbose, 'human', { queryModel: query });
+    const result = await repairMarketQuestionTitle('m', verbose, { queryModel: query });
 
     expect(result.finalJson).toBe(verbose);
     expect(result.repaired).toBe(false);
@@ -87,7 +87,7 @@ describe('repairMarketQuestionTitle', () => {
     };
     const query = vi.fn().mockRejectedValue(new Error('network down'));
 
-    const result = await repairMarketQuestionTitle('m', verbose, 'human', { queryModel: query });
+    const result = await repairMarketQuestionTitle('m', verbose, { queryModel: query });
 
     expect(query).toHaveBeenCalledTimes(1);
     expect(result.finalJson).toBe(verbose);
@@ -109,7 +109,7 @@ describe('repairMarketQuestionTitle', () => {
       wallClockMs: 25,
     });
 
-    const result = await repairMarketQuestionTitle('m', verbose, 'human', { queryModel: query });
+    const result = await repairMarketQuestionTitle('m', verbose, { queryModel: query });
 
     expect(result.repaired).toBe(true);
     expect(result.finalJson.outcomes).toEqual(verbose.outcomes);
