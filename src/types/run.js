@@ -14,8 +14,10 @@ import { z } from 'zod';
 
 export const DEFAULT_RIGOR = 'human';
 
-export function normalizeRigor(value) {
-  return value === DEFAULT_RIGOR ? DEFAULT_RIGOR : DEFAULT_RIGOR;
+export function normalizeRigor(_value) {
+  // Legacy exports may contain old mode names; the app now supports one
+  // value, so every imported value collapses to the default.
+  return DEFAULT_RIGOR;
 }
 
 /**
@@ -389,8 +391,8 @@ export const RunSchema = z.object({
     // on runs exported before this field existed — defaulted to '' so older
     // run files still validate against this schema.
     numberOfOutcomes: z.string().optional().default(''),
-    // Output profile selected at draft time. Older or unknown values are
-    // normalized to the single supported profile.
+    // Legacy run field retained for import/export compatibility. Older or
+    // unknown values are normalized to the single supported value.
     rigor: z.preprocess(normalizeRigor, z.literal(DEFAULT_RIGOR)),
   }),
   drafts: z.array(DraftRecordSchema),

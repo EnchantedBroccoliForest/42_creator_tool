@@ -97,14 +97,12 @@ CONSTRAINTS:
 };
 
 /**
- * Resolve a system prompt for a role. The second argument is accepted for
- * compatibility with older call sites and ignored.
+ * Resolve a system prompt for a role.
  *
  * @param {string} role
- * @param {string} [_rigor]
  * @returns {string}
  */
-export function getSystemPrompt(role, _rigor = 'human') {
+export function getSystemPrompt(role) {
   return SYSTEM_PROMPTS[role];
 }
 
@@ -127,7 +125,7 @@ export function buildOutcomeCountConstraint(numberOfOutcomes) {
   return `\nHARD RESTRICTION — OUTCOME SET SIZE: the market MUST have EXACTLY ${n} Outcome Tokens — no more, no fewer. This is a user-imposed constraint and overrides any instinct to add or drop outcomes. The mandatory catch-all "Other / None" (required unless the field is provably closed) counts toward the ${n}. If ${n} is too small to cover the outcome space MECE-ly, compress by merging adjacent buckets rather than exceeding ${n}, and state explicitly in the draft how the merge preserves MECE. Do NOT emit a draft with any other number of outcomes.\n`;
 }
 
-export function buildDraftPrompt(question, startDate, endDate, references, numberOfOutcomes, _rigor = 'human') {
+export function buildDraftPrompt(question, startDate, endDate, references, numberOfOutcomes) {
   const referencesSection = references && references.trim()
     ? `\nReference Links:\n${references.trim()}\n`
     : '';
@@ -150,7 +148,7 @@ Provide a comprehensive draft that includes:
 6. Any assumptions that need to be made explicit`;
 }
 
-export function buildReviewPrompt(draftContent, _rigor = 'human') {
+export function buildReviewPrompt(draftContent) {
   // Per-step prompt is intentionally lean: the failure modes to look for are
   // already enumerated in PROTOCOL_CONTEXT (system prompt). This prompt only
   // tells the reviewer what to do with the draft.
@@ -160,7 +158,7 @@ DRAFT TO REVIEW:
 ${draftContent}`;
 }
 
-export function buildDeliberationPrompt(draftContent, reviews, numberOfOutcomes, _rigor = 'human') {
+export function buildDeliberationPrompt(draftContent, reviews, numberOfOutcomes) {
   const reviewsText = reviews
     .map(
       (r, i) =>
@@ -178,7 +176,7 @@ OTHER REVIEWERS' CRITIQUES:
 ${reviewsText}${outcomeCountSection}`;
 }
 
-export function buildUpdatePrompt(draftContent, reviewContent, humanReviewInput, focusBlock, numberOfOutcomes, references, _rigor = 'human') {
+export function buildUpdatePrompt(draftContent, reviewContent, humanReviewInput, focusBlock, numberOfOutcomes, references) {
   // Phase 5: `focusBlock` is an optional pre-rendered string produced by
   // buildRoutingFocusBlock(). When present it lists the specific claims
   // the routing pipeline flagged as blocking or needing targeted review,
@@ -244,9 +242,9 @@ export function buildRoutingFocusBlock(routing, claims) {
     .join('\n');
 }
 
-export function buildFinalizePrompt(draftContent, startDate, endDate, numberOfOutcomes, rigor = 'human') {
+export function buildFinalizePrompt(draftContent, startDate, endDate, numberOfOutcomes) {
   const outcomeCountSection = buildOutcomeCountConstraint(numberOfOutcomes);
-  const titleMaxChars = getMarketQuestionTitleLimit(rigor);
+  const titleMaxChars = getMarketQuestionTitleLimit();
   // Per-step prompt is intentionally lean: protocol rules live in
   // PROTOCOL_CONTEXT (system prompt). This prompt only specifies the JSON
   // schema and the conciseness discipline.
@@ -305,8 +303,8 @@ Generate a JSON response with exactly these fields:
 }`;
 }
 
-export function buildMarketQuestionTitleRepairPrompt(finalJson, rigor = 'human') {
-  const titleMaxChars = getMarketQuestionTitleLimit(rigor);
+export function buildMarketQuestionTitleRepairPrompt(finalJson) {
+  const titleMaxChars = getMarketQuestionTitleLimit();
   return `Rewrite only the "refinedQuestion" field below as a trader-facing market title.
 
 TITLE RULES:
@@ -353,7 +351,7 @@ SPEC JSON:
 ${JSON.stringify(finalJson, null, 2)}`;
 }
 
-export function buildIdeatePrompt(direction, _rigor = 'human', references = '') {
+export function buildIdeatePrompt(direction, references = '') {
   const trimmed = (direction || '').trim();
   const directionSection = trimmed
     ? `USER DIRECTION:\n${trimmed}`
@@ -454,7 +452,7 @@ ${buildClaimExtractorPrompt(draftContent)}`;
 // The rubric is passed in explicitly so adding or reordering rubric items
 // never requires changing this module — `src/constants/rubric.js` is the
 // single source of truth.
-export function buildStructuredReviewPrompt(draftContent, rubric, numberOfOutcomes, _rigor = 'human') {
+export function buildStructuredReviewPrompt(draftContent, rubric, numberOfOutcomes) {
   const rubricBlock = rubric
     .map(
       (item, i) =>
@@ -506,12 +504,12 @@ ${draftContent}`;
 // Strict retry for the structured reviewer. Used when the first pass
 // returned invalid JSON. Identical content but leans harder on the
 // "JSON only" constraint.
-export function buildStrictStructuredReviewRetryPrompt(draftContent, rubric, numberOfOutcomes, rigor = 'human') {
+export function buildStrictStructuredReviewRetryPrompt(draftContent, rubric, numberOfOutcomes) {
   return `Your previous response was not valid JSON. Try again.
 
 Output ONLY a JSON object. No prose. No markdown fences. No commentary. Nothing before or after the object. The first character of your response must be "{" and the last character must be "}".
 
-${buildStructuredReviewPrompt(draftContent, rubric, numberOfOutcomes, rigor)}`;
+${buildStructuredReviewPrompt(draftContent, rubric, numberOfOutcomes)}`;
 }
 
 // Judge aggregator prompt — only used when the user selects the 'judge'
@@ -522,7 +520,7 @@ ${buildStructuredReviewPrompt(draftContent, rubric, numberOfOutcomes, rigor)}`;
 // Rationale is required because the judge result is otherwise opaque — a
 // plain pass/fail verdict from a single extra LLM call would replace one
 // single-point-of-failure (the chairman) with another.
-export function buildJudgeAggregatorPrompt(rubric, checklist, _rigor = 'human') {
+export function buildJudgeAggregatorPrompt(rubric, checklist) {
   const rubricById = Object.fromEntries(rubric.map((r) => [r.id, r]));
   const itemsBlock = checklist
     .map((item) => {
@@ -566,12 +564,12 @@ RULES:
   - The rationale must name specific rubric ids — do not give a generic summary.`;
 }
 
-export function buildStrictJudgeAggregatorRetryPrompt(rubric, checklist, rigor = 'human') {
+export function buildStrictJudgeAggregatorRetryPrompt(rubric, checklist) {
   return `Your previous response was not valid JSON. Try again.
 
 Output ONLY a JSON object. No prose. No markdown fences. The first character must be "{" and the last character must be "}".
 
-${buildJudgeAggregatorPrompt(rubric, checklist, rigor)}`;
+${buildJudgeAggregatorPrompt(rubric, checklist)}`;
 }
 
 // Batched draft-entailment verifier — Phase 3. One LLM call per run
@@ -633,7 +631,7 @@ ${buildBatchEntailmentPrompt(claims, draftContent)}`;
 // NOTE: this builder takes the *raw updated draft* (not a finalized JSON
 // object). The risk check now gates Stage 4 — HIGH risk must be acknowledged
 // before the user can Accept & Finalize.
-export function buildEarlyResolutionPrompt(draftContent, startDate, endDate, _rigor = 'human') {
+export function buildEarlyResolutionPrompt(draftContent, startDate, endDate) {
   // Per-step prompt is intentionally lean: the protocol context (why early
   // certainty is bad on 42) lives in the system prompt. This prompt only
   // orchestrates the risk check.

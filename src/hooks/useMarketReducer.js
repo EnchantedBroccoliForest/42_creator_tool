@@ -5,7 +5,7 @@ import {
   DEFAULT_REVIEW_MODEL_IDS,
   REVIEW_MODEL_ADD_ORDER,
 } from '../constants/models';
-import { createRun, DEFAULT_RIGOR, normalizeRigor } from '../types/run';
+import { createRun } from '../types/run';
 
 // Exported for direct testing of state transitions. Production code should
 // continue to use `useMarketReducer()` below — this re-export only widens
@@ -13,11 +13,6 @@ import { createRun, DEFAULT_RIGOR, normalizeRigor } from '../types/run';
 export const initialState = {
   // Mode
   mode: 'draft', // 'draft' | 'review' | 'ideating'
-
-  // Output profile is snapshotted onto the Run artifact at draft time so
-  // imports and exports remain explicit even though there is only one
-  // supported profile.
-  rigor: DEFAULT_RIGOR,
 
   // Input
   question: '',
@@ -587,7 +582,6 @@ function rehydrateFromRun(state, run) {
     endDate: run.input?.endDate || '',
     references: run.input?.references || '',
     numberOfOutcomes: run.input?.numberOfOutcomes || '',
-    rigor: normalizeRigor(run.input?.rigor),
     // View-state rebuild. The run-trace panel is authoritative for imported
     // review details; the main UI still renders the latest draft and final JSON.
     draftContent: lastDraft ? lastDraft.content : null,

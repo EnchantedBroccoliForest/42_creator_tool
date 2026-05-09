@@ -413,7 +413,6 @@ function App() {
     endDate,
     references,
     numberOfOutcomes,
-    rigor,
     selectedModel,
     reviewModels,
     aggregationProtocol,
@@ -707,17 +706,16 @@ function App() {
     const endDateUTC = validation.endDateUTC;
 
     dispatch({ type: 'START_LOADING', phase: 'draft', models: [getModelName(selectedModel)] });
-    // Start a fresh Run artifact; previous run (if any) is discarded.
-    // Including the output profile in RUN_START keeps exports explicit and
-    // lets later stages read one stable value from currentRunRef.
+    // Start a fresh Run artifact from the validated inputs; previous run
+    // (if any) is discarded.
     dispatch({
       type: 'RUN_START',
-      input: { question, startDate: startDateUTC, endDate: endDateUTC, references, numberOfOutcomes, rigor },
+      input: { question, startDate: startDateUTC, endDate: endDateUTC, references, numberOfOutcomes },
     });
     try {
       const result = await queryModel(selectedModel, [
-        { role: 'system', content: getSystemPrompt('drafter', rigor) },
-        { role: 'user', content: buildDraftPrompt(question, startDateUTC, endDateUTC, references, numberOfOutcomes, rigor) },
+        { role: 'system', content: getSystemPrompt('drafter') },
+        { role: 'user', content: buildDraftPrompt(question, startDateUTC, endDateUTC, references, numberOfOutcomes) },
       ], { maxTokens: DRAFT_MAX_TOKENS });
       dispatch({ type: 'DRAFT_SUCCESS', content: result.content });
       recordCost('draft', result);
@@ -761,10 +759,6 @@ function App() {
     if (!draftContent) return;
     dispatch({ type: 'START_LOADING', phase: 'review', models: reviewModels.map((id) => getModelName(id)) });
 
-    // Read the output profile off the Run snapshot so every stage in a run
-    // uses the same prompt style.
-    const runRigor = currentRunRef.current?.input?.rigor ?? rigor;
-
     try {
       const reviewerModels = reviewModels.map((id) => ({
         id,
@@ -778,7 +772,6 @@ function App() {
         draftContent,
         RIGOR_RUBRIC,
         numberOfOutcomes,
-        runRigor,
       );
 
       // Per-reviewer cost + log accounting.
@@ -813,9 +806,9 @@ function App() {
       // when we have 2+ reviewers.
       let deliberatedReview = null;
       if (reviewSummaries.length > 1) {
-        const deliberationPrompt = buildDeliberationPrompt(draftContent, reviewSummaries, numberOfOutcomes, runRigor);
+        const deliberationPrompt = buildDeliberationPrompt(draftContent, reviewSummaries, numberOfOutcomes);
         const delibResult = await queryModel(reviewSummaries[0].model, [
-          { role: 'system', content: getSystemPrompt('reviewer', runRigor) },
+          { role: 'system', content: getSystemPrompt('reviewer') },
           { role: 'user', content: deliberationPrompt },
         ]);
         deliberatedReview = delibResult.content;
@@ -844,7 +837,6 @@ function App() {
         RIGOR_RUBRIC,
         allVotes,
         judgeModelId,
-        runRigor,
       );
 
       if (aggResult.usage && aggResult.usage.totalTokens > 0) {
@@ -890,9 +882,6 @@ function App() {
     if (!draftContent || reviews.length === 0) return;
     dispatch({ type: 'START_LOADING', phase: 'update', models: [getModelName(selectedModel)] });
 
-    // See handleReview for the snapshotting rationale.
-    const runRigor = currentRunRef.current?.input?.rigor ?? rigor;
-
     let updatedDraft;
     let updatedClaimPipeline = { claims: [] };
     try {
@@ -905,8 +894,8 @@ function App() {
         currentRunRef.current?.claims || [],
       );
       const result = await queryModel(selectedModel, [
-        { role: 'system', content: getSystemPrompt('drafter', runRigor) },
-        { role: 'user', content: buildUpdatePrompt(displayedDraftContent, reviewText, humanReviewInput, focusBlock, numberOfOutcomes, references, runRigor) },
+        { role: 'system', content: getSystemPrompt('drafter') },
+        { role: 'user', content: buildUpdatePrompt(displayedDraftContent, reviewText, humanReviewInput, focusBlock, numberOfOutcomes, references) },
       ], { maxTokens: DRAFT_MAX_TOKENS });
       updatedDraft = result.content;
       recordCost('update', result);
@@ -931,14 +920,13 @@ function App() {
     dispatch({ type: 'START_EARLY_RESOLUTION', models: [getModelName(selectedModel)] });
     try {
       const riskResult = await queryModel(selectedModel, [
-        { role: 'system', content: getSystemPrompt('earlyResolutionAnalyst', runRigor) },
+        { role: 'system', content: getSystemPrompt('earlyResolutionAnalyst') },
         {
           role: 'user',
           content: buildEarlyResolutionPrompt(
             updatedDraft,
             normalizeUtcDateTime(startDate, '00:00:00'),
             normalizeUtcDateTime(endDate, '23:59:59'),
-            runRigor,
           ),
         },
       ]);
@@ -1016,14 +1004,11 @@ function App() {
     if (needsSourceAck) return; // block until unreachable data sources are addressed or acknowledged
     dispatch({ type: 'START_LOADING', phase: 'accept', models: [getModelName(selectedModel)] });
 
-    // See handleReview for the snapshotting rationale.
-    const runRigor = currentRunRef.current?.input?.rigor ?? rigor;
-
     try {
       const result = await queryModel(
         selectedModel,
         [
-          { role: 'system', content: getSystemPrompt('finalizer', runRigor) },
+          { role: 'system', content: getSystemPrompt('finalizer') },
           {
             role: 'user',
             content: buildFinalizePrompt(
@@ -1031,7 +1016,6 @@ function App() {
               normalizeUtcDateTime(startDate, '00:00:00'),
               normalizeUtcDateTime(endDate, '23:59:59'),
               numberOfOutcomes,
-              runRigor,
             ),
           },
         ],
@@ -1062,7 +1046,7 @@ function App() {
       });
       finalContent = humResult.humanizedJson;
 
-      const titleResult = await repairMarketQuestionTitle(selectedModel, finalContent, runRigor);
+      const titleResult = await repairMarketQuestionTitle(selectedModel, finalContent);
       recordCost('title_repair', titleResult);
       dispatch({
         type: 'RUN_LOG',
@@ -1099,7 +1083,6 @@ function App() {
         endDate: normalizeUtcDateTime(endDate, '23:59:59'),
         references,
         numberOfOutcomes,
-        rigor,
       },
     });
     dispatch({
@@ -1123,8 +1106,8 @@ function App() {
     dispatch({ type: 'START_LOADING', phase: 'ideate', models: [getModelName(ideatingModel)] });
     try {
       const result = await queryModel(ideatingModel, [
-        { role: 'system', content: getSystemPrompt('ideator', rigor) },
-        { role: 'user', content: buildIdeatePrompt(ideatingInput, rigor, ideatingReferences) },
+        { role: 'system', content: getSystemPrompt('ideator') },
+        { role: 'user', content: buildIdeatePrompt(ideatingInput, ideatingReferences) },
       ]);
       dispatch({ type: 'IDEATE_SUCCESS', content: result.content });
     } catch (err) {

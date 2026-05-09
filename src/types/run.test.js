@@ -65,7 +65,7 @@ const VALID_RUN_BASE = {
 };
 
 describe('Run.input.rigor', () => {
-  it('createRun stamps the supported output profile', () => {
+  it('createRun stamps the legacy field with the supported value', () => {
     const run = createRun({
       question: 'Q?',
       startDate: '2026-01-01',
@@ -97,14 +97,20 @@ describe('Run.input.rigor', () => {
     expect(parsed.input.rigor).toBe(DEFAULT_RIGOR);
   });
 
-  it('parseRun normalizes unknown legacy rigor values', () => {
+  it('parseRun normalizes old and unknown legacy rigor values', () => {
     const run = {
       ...VALID_RUN_BASE,
-      input: { question: 'Q?', startDate: '2026-01-01', endDate: '2026-12-31', references: '', rigor: 'yolo' },
+      input: { question: 'Q?', startDate: '2026-01-01', endDate: '2026-12-31', references: '', rigor: 'machine' },
     };
     const parsed = parseRun(run);
     expect(parsed).not.toBeNull();
     expect(parsed.input.rigor).toBe(DEFAULT_RIGOR);
     expect(RunSchema.safeParse(run).success).toBe(true);
+
+    const unknown = {
+      ...VALID_RUN_BASE,
+      input: { question: 'Q?', startDate: '2026-01-01', endDate: '2026-12-31', references: '', rigor: 'yolo' },
+    };
+    expect(parseRun(unknown)?.input.rigor).toBe(DEFAULT_RIGOR);
   });
 });

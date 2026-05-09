@@ -3,20 +3,9 @@ import { reducer, initialState } from './useMarketReducer.js';
 import { createRun, DEFAULT_RIGOR } from '../types/run.js';
 import { DEFAULT_REVIEW_MODEL_IDS } from '../constants/models.js';
 
-describe('useMarketReducer rigor field', () => {
-  it('initialState uses the single supported output profile', () => {
-    expect(initialState.rigor).toBe(DEFAULT_RIGOR);
-  });
-
-  it('SET_FIELD still updates the stored profile for internal callers', () => {
-    const next = reducer(initialState, { type: 'SET_FIELD', field: 'rigor', value: DEFAULT_RIGOR });
-    expect(next.rigor).toBe(DEFAULT_RIGOR);
-  });
-
-  it('RESET restores the default profile', () => {
-    const changed = reducer(initialState, { type: 'SET_FIELD', field: 'rigor', value: DEFAULT_RIGOR });
-    const reset = reducer(changed, { type: 'RESET' });
-    expect(reset.rigor).toBe(DEFAULT_RIGOR);
+describe('useMarketReducer legacy profile state', () => {
+  it('does not keep a separate legacy profile in UI state', () => {
+    expect(Object.hasOwn(initialState, 'rigor')).toBe(false);
   });
 });
 
@@ -153,8 +142,8 @@ describe('review lifecycle config', () => {
   });
 });
 
-describe('RUN_IMPORT rehydrates rigor from the run artifact', () => {
-  it('imports the supported profile from a run artifact', () => {
+describe('RUN_IMPORT keeps legacy profile data inside the run artifact', () => {
+  it('imports the supported legacy value on currentRun without mirroring it into UI state', () => {
     const importedRun = {
       ...createRun({
         question: 'Q?',
@@ -166,11 +155,11 @@ describe('RUN_IMPORT rehydrates rigor from the run artifact', () => {
       }),
     };
     const next = reducer(initialState, { type: 'RUN_IMPORT', run: importedRun });
-    expect(next.rigor).toBe(DEFAULT_RIGOR);
+    expect(Object.hasOwn(next, 'rigor')).toBe(false);
     expect(next.currentRun.input.rigor).toBe(DEFAULT_RIGOR);
   });
 
-  it('falls back to the supported profile when imported run input lacks rigor', () => {
+  it('does not synthesize UI state when imported run input lacks rigor', () => {
     const olderRun = createRun({
       question: 'Q?',
       startDate: '2026-01-01',
@@ -180,6 +169,7 @@ describe('RUN_IMPORT rehydrates rigor from the run artifact', () => {
     });
     delete olderRun.input.rigor;
     const next = reducer(initialState, { type: 'RUN_IMPORT', run: olderRun });
-    expect(next.rigor).toBe(DEFAULT_RIGOR);
+    expect(Object.hasOwn(next, 'rigor')).toBe(false);
+    expect(next.currentRun.input.rigor).toBeUndefined();
   });
 });

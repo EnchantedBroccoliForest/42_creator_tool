@@ -77,8 +77,8 @@ describe('validateMarketQuestionTitle', () => {
     expect(result.reasons).toContain('must keep resolver mechanics out of the title');
   });
 
-  it('uses the same title limit for old selector arguments', () => {
-    expect(getMarketQuestionTitleLimit('legacy-selector')).toBe(getMarketQuestionTitleLimit());
+  it('uses a fixed title limit', () => {
+    expect(getMarketQuestionTitleLimit()).toBe(70);
   });
 
   describe('resolver phrasing checks', () => {

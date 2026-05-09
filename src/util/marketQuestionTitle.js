@@ -55,11 +55,11 @@ function oneLine(value) {
   return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
 }
 
-export function getMarketQuestionTitleLimit(_rigor = 'human') {
+export function getMarketQuestionTitleLimit() {
   return TITLE_LIMIT;
 }
 
-export function validateMarketQuestionTitle(title, _rigor = 'human') {
+export function validateMarketQuestionTitle(title) {
   const normalized = oneLine(title);
   const maxChars = getMarketQuestionTitleLimit();
   const reasons = [];

@@ -60,6 +60,12 @@ describe('SYSTEM_PROMPTS', () => {
     expect(SYSTEM_PROMPTS.structuredReviewer).toMatch(/strictly valid JSON/i);
   });
 
+  it('keeps a one-to-one string prompt per role for eval classification', () => {
+    const prompts = Object.values(SYSTEM_PROMPTS);
+    expect(prompts.every((prompt) => typeof prompt === 'string')).toBe(true);
+    expect(new Set(prompts).size).toBe(prompts.length);
+  });
+
   it('PROTOCOL_CONTEXT carries market-suitability guidance from the 42 creation guide', () => {
     expect(PROTOCOL_CONTEXT).toContain('time-based=preset timestamp');
     expect(PROTOCOL_CONTEXT).toContain('event-based=external reveal + monitoring');
@@ -80,9 +86,8 @@ describe('SYSTEM_PROMPTS', () => {
 });
 
 describe('getSystemPrompt(role)', () => {
-  it('returns the role prompt and ignores old selector arguments', () => {
+  it('returns the role prompt', () => {
     expect(getSystemPrompt('reviewer')).toBe(SYSTEM_PROMPTS.reviewer);
-    expect(getSystemPrompt('reviewer', 'legacy')).toBe(SYSTEM_PROMPTS.reviewer);
   });
 });
 
@@ -172,7 +177,7 @@ describe('prompt builders', () => {
   });
 
   it('buildIdeatePrompt with references emits a fenced UNTRUSTED block and priority directive', () => {
-    const out = buildIdeatePrompt(SAMPLE.direction, undefined, SAMPLE.references);
+    const out = buildIdeatePrompt(SAMPLE.direction, SAMPLE.references);
     expect(out).toContain(SAMPLE.references);
     expect(out).toContain('UNTRUSTED_REFERENCES');
     expect(out).toMatch(/HARD CONSTRAINT/);
@@ -190,7 +195,7 @@ describe('prompt builders', () => {
       'https://example.com/decoy',
     ].join('\n');
 
-    const out = buildIdeatePrompt(SAMPLE.direction, undefined, malicious);
+    const out = buildIdeatePrompt(SAMPLE.direction, malicious);
     const sentinelHits = (out.match(/UNTRUSTED_REFERENCES/g) || []).length;
     expect(sentinelHits).toBe(2);
 

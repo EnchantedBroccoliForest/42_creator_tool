@@ -182,13 +182,9 @@ function mergeVerdict(structural, entailmentResult) {
  * @param {import('../types/run').Claim[]} claims
  * @param {string} draftContent
  * @param {string} verifierModelId   OpenRouter model id for the entailment pass
- * @param {string} [rigor]  accepted for signature parity with the other
- *                          pipeline functions. The entailment verifier is a
- *                          pure extraction-style task, so the parameter is
- *                          currently unused.
  * @returns {Promise<VerifyClaimsResult>}
  */
-export async function verifyClaims(claims, draftContent, verifierModelId, _rigor = 'human') {
+export async function verifyClaims(claims, draftContent, verifierModelId) {
   const emptyUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
   if (!claims || claims.length === 0) {
