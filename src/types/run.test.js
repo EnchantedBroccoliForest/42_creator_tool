@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ClaimSchema, RunSchema, createRun, parseRun, DEFAULT_RIGOR } from './run.js';
+import { ClaimSchema, RunSchema, createRun, parseRun } from './run.js';
 
 function makeClaim(id) {
   return { id, category: 'outcome_win', text: 'anything', sourceRefs: [] };
@@ -47,7 +47,7 @@ describe('ClaimSchema.id pattern', () => {
   });
 });
 
-// ----------------------------------------------------------- rigor field --
+// --------------------------------------------------------- run input --
 
 const VALID_RUN_BASE = {
   runId: 'run_test',
@@ -64,53 +64,42 @@ const VALID_RUN_BASE = {
   log: [],
 };
 
-describe('Run.input.rigor', () => {
-  it('createRun stamps the legacy field with the supported value', () => {
+describe('Run.input', () => {
+  it('createRun stamps only active drafting inputs', () => {
     const run = createRun({
       question: 'Q?',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
       references: '',
       numberOfOutcomes: '',
-      rigor: DEFAULT_RIGOR,
     });
-    expect(run.input.rigor).toBe(DEFAULT_RIGOR);
-  });
-
-  it('createRun defaults rigor when omitted', () => {
-    const run = createRun({
+    expect(run.input).toEqual({
       question: 'Q?',
       startDate: '2026-01-01',
       endDate: '2026-12-31',
       references: '',
+      numberOfOutcomes: '',
     });
-    expect(run.input.rigor).toBe(DEFAULT_RIGOR);
   });
 
-  it('parseRun accepts a run missing input.rigor and defaults it', () => {
+  it('parseRun defaults older runs missing numberOfOutcomes', () => {
     const olderRun = {
       ...VALID_RUN_BASE,
       input: { question: 'Q?', startDate: '2026-01-01', endDate: '2026-12-31', references: '' },
     };
     const parsed = parseRun(olderRun);
     expect(parsed).not.toBeNull();
-    expect(parsed.input.rigor).toBe(DEFAULT_RIGOR);
+    expect(parsed.input.numberOfOutcomes).toBe('');
   });
 
-  it('parseRun normalizes old and unknown legacy rigor values', () => {
+  it('parseRun accepts and strips unknown input fields', () => {
     const run = {
       ...VALID_RUN_BASE,
-      input: { question: 'Q?', startDate: '2026-01-01', endDate: '2026-12-31', references: '', rigor: 'machine' },
+      input: { question: 'Q?', startDate: '2026-01-01', endDate: '2026-12-31', references: '', removedField: 'legacy-value' },
     };
     const parsed = parseRun(run);
     expect(parsed).not.toBeNull();
-    expect(parsed.input.rigor).toBe(DEFAULT_RIGOR);
+    expect(Object.hasOwn(parsed.input, 'removedField')).toBe(false);
     expect(RunSchema.safeParse(run).success).toBe(true);
-
-    const unknown = {
-      ...VALID_RUN_BASE,
-      input: { question: 'Q?', startDate: '2026-01-01', endDate: '2026-12-31', references: '', rigor: 'yolo' },
-    };
-    expect(parseRun(unknown)?.input.rigor).toBe(DEFAULT_RIGOR);
   });
 });

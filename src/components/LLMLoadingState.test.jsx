@@ -5,12 +5,11 @@ import LLMLoadingState from './LLMLoadingState.jsx';
 const META = { models: ['gpt-test'], startTime: Date.now() };
 
 describe('LLMLoadingState', () => {
-  it('renders phase, model, and elapsed state without an output-style chip', () => {
+  it('renders phase, model, and elapsed state', () => {
     const html = renderToStaticMarkup(
       <LLMLoadingState phase="draft" meta={META} />,
     );
     expect(html).toContain('Drafting market proposal');
     expect(html).toContain('gpt-test');
-    expect(html).not.toContain('llm-loading__rigor');
   });
 });

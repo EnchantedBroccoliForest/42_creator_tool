@@ -1,13 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { reducer, initialState } from './useMarketReducer.js';
-import { createRun, DEFAULT_RIGOR } from '../types/run.js';
 import { DEFAULT_REVIEW_MODEL_IDS } from '../constants/models.js';
-
-describe('useMarketReducer legacy profile state', () => {
-  it('does not keep a separate legacy profile in UI state', () => {
-    expect(Object.hasOwn(initialState, 'rigor')).toBe(false);
-  });
-});
 
 describe('review council defaults', () => {
   it('starts with Gemini 3 Pro and Claude Opus 4.5 as the default council', () => {
@@ -139,37 +132,5 @@ describe('review lifecycle config', () => {
 
     expect(next.reviews).toEqual([]);
     expect(next.lastReviewConfig).toBeNull();
-  });
-});
-
-describe('RUN_IMPORT keeps legacy profile data inside the run artifact', () => {
-  it('imports the supported legacy value on currentRun without mirroring it into UI state', () => {
-    const importedRun = {
-      ...createRun({
-        question: 'Q?',
-        startDate: '2026-01-01',
-        endDate: '2026-12-31',
-        references: '',
-        numberOfOutcomes: '',
-        rigor: DEFAULT_RIGOR,
-      }),
-    };
-    const next = reducer(initialState, { type: 'RUN_IMPORT', run: importedRun });
-    expect(Object.hasOwn(next, 'rigor')).toBe(false);
-    expect(next.currentRun.input.rigor).toBe(DEFAULT_RIGOR);
-  });
-
-  it('does not synthesize UI state when imported run input lacks rigor', () => {
-    const olderRun = createRun({
-      question: 'Q?',
-      startDate: '2026-01-01',
-      endDate: '2026-12-31',
-      references: '',
-      numberOfOutcomes: '',
-    });
-    delete olderRun.input.rigor;
-    const next = reducer(initialState, { type: 'RUN_IMPORT', run: olderRun });
-    expect(Object.hasOwn(next, 'rigor')).toBe(false);
-    expect(next.currentRun.input.rigor).toBeUndefined();
   });
 });
