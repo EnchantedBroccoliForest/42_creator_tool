@@ -51,9 +51,11 @@ import { tryParseJsonObject, createUsageAggregator } from './llmJson.js';
  *                                                the outcome-set cardinality;
  *                                                empty string means no
  *                                                restriction (default).
+ * @param {string} [sourceOfTruth]                optional user-provided
+ *                                                definitive resolution source.
  * @returns {Promise<StructuredReviewResult>}
  */
-export async function runStructuredReview(model, draftContent, rubric, numberOfOutcomes = '') {
+export async function runStructuredReview(model, draftContent, rubric, numberOfOutcomes = '', sourceOfTruth = '') {
   const rubricIds = new Set(rubric.map((r) => r.id));
   const { aggregate, accumulate } = createUsageAggregator();
 
@@ -64,7 +66,7 @@ export async function runStructuredReview(model, draftContent, rubric, numberOfO
       model.id,
       [
         { role: 'system', content: getSystemPrompt('structuredReviewer') },
-        { role: 'user', content: buildStructuredReviewPrompt(draftContent, rubric, numberOfOutcomes) },
+        { role: 'user', content: buildStructuredReviewPrompt(draftContent, rubric, numberOfOutcomes, sourceOfTruth) },
       ],
       { temperature: 0.4, maxTokens: 3000 }
     );
@@ -98,7 +100,7 @@ export async function runStructuredReview(model, draftContent, rubric, numberOfO
           { role: 'system', content: getSystemPrompt('structuredReviewer') },
           {
             role: 'user',
-            content: buildStrictStructuredReviewRetryPrompt(draftContent, rubric, numberOfOutcomes),
+            content: buildStrictStructuredReviewRetryPrompt(draftContent, rubric, numberOfOutcomes, sourceOfTruth),
           },
         ],
         { temperature: 0.2, maxTokens: 3000 }
@@ -200,11 +202,13 @@ export async function runStructuredReview(model, draftContent, rubric, numberOfO
  *                                     outcome-set cardinality (propagated to
  *                                     every reviewer); empty string = no
  *                                     restriction.
+ * @param {string} [sourceOfTruth]     optional user-provided definitive
+ *                                     resolution source.
  * @returns {Promise<StructuredReviewResult[]>}
  */
-export async function runStructuredReviewsParallel(models, draftContent, rubric, numberOfOutcomes = '') {
+export async function runStructuredReviewsParallel(models, draftContent, rubric, numberOfOutcomes = '', sourceOfTruth = '') {
   const settled = await Promise.allSettled(
-    models.map((m) => runStructuredReview(m, draftContent, rubric, numberOfOutcomes))
+    models.map((m) => runStructuredReview(m, draftContent, rubric, numberOfOutcomes, sourceOfTruth))
   );
   return settled.map((s, i) => {
     if (s.status === 'fulfilled') return s.value;

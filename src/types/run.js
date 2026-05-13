@@ -136,7 +136,7 @@ export const GLOBAL_CLAIM_ID = 'global';
  * @typedef {Object} Run
  * @property {string} runId
  * @property {number} startedAt
- * @property {{question:string, startDate:string, endDate:string, references:string, numberOfOutcomes?:string, rigor?:'human'}} input
+ * @property {{question:string, startDate:string, endDate:string, references:string, sourceOfTruth?:string, numberOfOutcomes?:string, rigor?:'human'}} input
  * @property {DraftRecord[]} drafts
  * @property {Criticism[]} criticisms
  * @property {Claim[]} claims
@@ -295,7 +295,7 @@ export const LogEntrySchema = z.object({
 
 export const SourceCheckEntrySchema = z.object({
   url: z.string(),
-  origin: z.enum(['resolution_section', 'source_claim', 'references', 'draft_body']),
+  origin: z.enum(['source_of_truth', 'resolution_section', 'source_claim', 'references', 'draft_body']),
   claimId: z.string().nullable(),
   accessible: z.boolean(),
 });
@@ -387,6 +387,9 @@ export const RunSchema = z.object({
     startDate: z.string(),
     endDate: z.string(),
     references: z.string(),
+    // Optional definitive resolution source. Runs exported before this field
+    // existed default to '' for import compatibility.
+    sourceOfTruth: z.string().optional().default(''),
     // Optional hard restriction on outcome-set cardinality. Absent (or empty)
     // on runs exported before this field existed — defaulted to '' so older
     // run files still validate against this schema.
@@ -440,7 +443,7 @@ export function createEmptyCost() {
 
 /**
  * Construct a fresh Run from the drafting inputs.
- * @param {{question:string, startDate:string, endDate:string, references:string, numberOfOutcomes?:string, rigor?:'human'}} input
+ * @param {{question:string, startDate:string, endDate:string, references:string, sourceOfTruth?:string, numberOfOutcomes?:string, rigor?:'human'}} input
  * @returns {Run}
  */
 export function createRun(input) {
@@ -452,6 +455,7 @@ export function createRun(input) {
       startDate: input?.startDate || '',
       endDate: input?.endDate || '',
       references: input?.references || '',
+      sourceOfTruth: input?.sourceOfTruth || '',
       numberOfOutcomes: input?.numberOfOutcomes || '',
       rigor: normalizeRigor(input?.rigor),
     },

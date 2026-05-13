@@ -195,6 +195,7 @@ async function runClaimPipeline(run, draftText, models, options, fetchImpl, cost
   } else {
     const eResult = await gatherEvidence({
       references: run.input.references,
+      sourceOfTruth: run.input.sourceOfTruth,
       claims: run.claims,
       verifications: run.verification,
       fetchImpl,
@@ -236,6 +237,7 @@ async function runReviewStage(run, models, options, cost, callbacks) {
     run.drafts[run.drafts.length - 1].content,
     RIGOR_RUBRIC,
     run.input?.numberOfOutcomes || '',
+    run.input?.sourceOfTruth || '',
   );
   for (const r of structured) {
     if (r.usage) cost.record('review', { usage: r.usage, wallClockMs: r.wallClockMs });
@@ -292,7 +294,7 @@ async function runUpdateStage(run, models, options, fetchImpl, cost, callbacks, 
     models.drafter,
     [
       { role: 'system', content: getSystemPrompt('drafter') },
-      { role: 'user', content: buildUpdatePrompt(latestDraft, reviewText, humanFeedback, focusBlock, run.input?.numberOfOutcomes || '', referencesStr) },
+      { role: 'user', content: buildUpdatePrompt(latestDraft, reviewText, humanFeedback, focusBlock, run.input?.numberOfOutcomes || '', referencesStr, run.input?.sourceOfTruth || '') },
     ],
     { maxTokens: 8000 },
   );
@@ -341,6 +343,7 @@ async function runSourceAccessibilityStage(run, referencesStr, fetchImpl, cost, 
   const checkResult = await checkResolutionSources({
     draftContent: latestDraft,
     references: referencesStr,
+    sourceOfTruth: run.input?.sourceOfTruth || '',
     claims: run.claims || [],
     fetchImpl,
     timeoutMs: 3000,
@@ -386,7 +389,7 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
     models.drafter,
     [
       { role: 'system', content: getSystemPrompt('finalizer') },
-      { role: 'user', content: buildFinalizePrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.numberOfOutcomes || '') },
+      { role: 'user', content: buildFinalizePrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.numberOfOutcomes || '', run.input?.sourceOfTruth || '') },
     ],
     { temperature: 0.3, maxTokens: DRAFT_MAX_TOKENS },
   );
@@ -467,6 +470,7 @@ function buildGates(run, riskLevel) {
  * @param {string} config.input.startDate        ISO 8601, required
  * @param {string} config.input.endDate          ISO 8601, required
  * @param {string[]} [config.input.references]   resolution source URLs
+ * @param {string} [config.input.sourceOfTruth]  definitive resolution source
  * @param {object} [config.models]
  * @param {string} [config.models.drafter]
  * @param {{id:string, name:string}[]} [config.models.reviewers]
@@ -533,6 +537,7 @@ async function _orchestrateInner(config, signal) {
     startDate: input?.startDate || '',
     endDate: input?.endDate || '',
     references: referencesStr,
+    sourceOfTruth: input?.sourceOfTruth || '',
     numberOfOutcomes: input?.numberOfOutcomes || '',
   });
 
@@ -570,6 +575,7 @@ async function _orchestrateInner(config, signal) {
             input?.endDate || '',
             referencesStr,
             input?.numberOfOutcomes || '',
+            input?.sourceOfTruth || '',
           ),
         },
       ],
