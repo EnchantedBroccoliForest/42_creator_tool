@@ -14,7 +14,7 @@ The app guides the user through a multi-stage pipeline. Each stage emits structu
 
 ### Stage 1: Draft
 
-The user provides a question, start/end dates (UTC), reference URLs, and a drafting model. The drafter — prompted with the full 42.space protocol context block (see `src/constants/prompts.js`) — produces:
+The user provides a question, start/end dates (UTC, date-only with a midnight default), reference URLs, an optional **Source of Truth** URL, a number-of-outcomes hint, and a drafting model. The drafter — prompted with the full 42.space protocol context block (see `src/constants/prompts.js`) — produces:
 
 - A refined, unambiguous question
 - Detailed resolution criteria mapped to an objective, machine-readable data source
@@ -22,7 +22,9 @@ The user provides a question, start/end dates (UTC), reference URLs, and a draft
 - Named fallback routing for every edge case (postponement, ties, source unavailability, "no listed outcome occurred")
 - Potential resolution sources
 
-An **Ideate** mode is available: given a topic direction, the model brainstorms multiple candidate markets — each constrained by the same protocol rules — and the user picks one to draft.
+**Source of Truth (optional)** — a single user-supplied URL that the user considers the definitive settlement source. When provided, it is injected as the priority resolution source at every prompt that touches resolution (drafter, reviewers, updater, finalizer) and is wrapped in an `UNTRUSTED_SOURCE_OF_TRUTH` fence so any instructions embedded in the page are treated as data, not directives. The drafter is required to first check that the URL is public, objective, machine-readable, stable through the resolution date, and specific enough to map the market to exactly one outcome — and to flag the URL as unusable if it fails any of those tests instead of silently treating it as authoritative. The CLI exposes the same field via `--source-of-truth`, and the HTTP review service accepts `sourceOfTruth` on the request body.
+
+An **Ideate** mode is available: given a topic direction (and an optional **References** block — links or pasted material that the ideator weighs above the direction itself), the model brainstorms multiple candidate markets — each constrained by the same protocol rules — and the user picks one to draft.
 
 ### Stage 2: Claim Extraction & Verification
 
@@ -51,9 +53,9 @@ The original drafting model incorporates the aggregated review, claim-level rout
 
 ### Stage 6: Source Accessibility Check, Early-Resolution Risk & Finalize
 
-- **Pre-finalize source check** — resolution sources named in the draft are probed for accessibility so the user sees a clear per-source pass/fail list before committing.
+- **Pre-finalize source check** — resolution sources named in the draft, plus the user's Source of Truth URL when supplied, are probed for accessibility so the user sees a clear per-source pass/fail list before committing.
 - **Early-resolution risk analysis** — a lightweight analyst pass (`src/util/riskLevel.js` + prompts) estimates whether the market could collapse to certainty well before the end date, since 42.space's bonding curve depends on a meaningful trade phase.
-- **Finalize** — the draft is converted into structured JSON matching the Outcome Token spawn shape: an array of outcomes (each with its own resolution criteria), start/end times in UTC, short description, full resolution rules, and edge cases. All sections are copyable to clipboard.
+- **Finalize** — the draft is converted into structured JSON matching the Outcome Token spawn shape: an array of outcomes (each with its own resolution criteria), start/end times in UTC, a short description, a resolution-description markdown block, full resolution rules, and edge cases. A post-finalize validator (`src/util/finalMarketJson.js`) rejects any outcome name that begins with the reserved `OT` token prefix, since those names collide with Outcome Token identifiers in the 42.space market creation guide. In the UI, the finalized output renders as a compact market card by default with a "Show full resolver spec" expansion; both views are copyable to clipboard.
 
 ### Output Style
 
@@ -88,7 +90,7 @@ npx pm-tools validate < run.json
 echo '{"input":{"question":"...","startDate":"...","endDate":"..."}}' | npx pm-tools draft
 ```
 
-Key flags: `--drafter`, `--reviewers`, `--aggregation` (majority/unanimity/judge), `--escalation` (always/selective), `--feedback`, `--output`, `--format` (json/report/html), `--level` (headline/report/full), `--no-finalize`, `--no-review`, `--timeout`.
+Key flags: `--drafter`, `--reviewers`, `--aggregation` (majority/unanimity/judge), `--escalation` (always/selective), `--source-of-truth`, `--feedback`, `--output`, `--format` (json/report/html), `--level` (headline/report/full), `--no-finalize`, `--no-review`, `--timeout`.
 
 ## HTTP Review Service
 
@@ -123,6 +125,7 @@ curl -X POST http://127.0.0.1:8787/review \
   -d '{
     "proposalText": "Will BTC exceed $100,000 by 2026-09-01? ...",
     "references": ["https://example.com/source"],
+    "sourceOfTruth": "https://example.com/definitive-source",
     "options": {
       "aggregation": "majority",
       "evidence": "retrieval",
@@ -163,6 +166,7 @@ src/
 ├── App.css                    # Application styles
 ├── ambient-modes.css          # Light/dark theme styles
 ├── main.jsx                   # React entry point
+├── i18n.js                    # Translation dictionary (en, zh-CN) + lookup
 ├── defaults.js                # Shared default config (models, options)
 ├── orchestrate.js             # Headless pipeline orchestrator (CLI + eval)
 ├── api/
@@ -175,6 +179,8 @@ src/
 │   ├── structuredReview.js    # Rubric-based structured review per reviewer
 │   ├── aggregate.js           # Majority / unanimity / judge vote aggregation
 │   ├── checkSources.js        # Pre-finalize resolution source accessibility check
+│   ├── humanize.js            # Post-finalize prose-field rewrite (UI only)
+│   ├── marketQuestionTitle.js # Title repair / length-budget enforcement
 │   ├── llmJson.js             # Shared JSON salvage + token-accumulator helpers
 │   └── xapi.js                # xAPI (X / Twitter) lookups + reference enrichment
 ├── types/
@@ -182,20 +188,42 @@ src/
 ├── hooks/
 │   ├── useMarketReducer.js    # Central state management via useReducer
 │   ├── useModels.js           # Live model list from OpenRouter API
+│   ├── useLanguage.js         # Active-language hook (en / zh)
+│   ├── useEnterTransition.js  # Step-transition animation hook
+│   ├── languageContext.js     # React context for the language toggle
 │   └── useAmbientMode.js      # Light/dark theme hook
 ├── components/
 │   ├── ModelSelect.jsx        # Reusable model selection dropdown
 │   ├── LLMLoadingState.jsx    # Animated loading state with phase messages
-│   └── AmbientModeToggle.jsx  # Theme toggle component
+│   ├── AmbientModeToggle.jsx  # Theme toggle component
+│   ├── LanguageProvider.jsx   # Language context provider
+│   ├── LanguageToggle.jsx     # EN / 中文 language toggle pill
+│   ├── ErrorMessage.jsx       # Standard error banner
+│   ├── Enter.jsx              # Mount animation wrapper
+│   └── Presence.jsx           # Unmount animation wrapper
 ├── constants/
 │   ├── models.js              # LLM model definitions, live-fetch, defaults
 │   ├── prompts.js             # System prompts and prompt builders for each stage
 │   └── rubric.js              # Six-item rigor rubric for 42.space markets
+├── report/
+│   ├── renderReport.js        # Narrative text report renderer
+│   ├── renderHtml.js          # HTML report renderer
+│   ├── aggregateReviews.js    # Per-rubric vote rollup for reports
+│   ├── diff.js                # Draft → updated-draft diff helper
+│   ├── runHash.js             # Stable hash of a Run for cache / dedupe
+│   └── shortIds.js            # Stable short IDs for claims / criticisms
 ├── service/
 │   ├── reviewProposal.js      # Existing-proposal review API
 │   └── server.js              # HTTP /review service
 └── util/
-    └── riskLevel.js           # Shared early-resolution risk-level parser
+    ├── riskLevel.js           # Shared early-resolution risk-level parser
+    ├── draftInput.js          # Date / form input parsing + validation
+    ├── externalUrl.js         # Safe-external-URL parsing
+    ├── finalCopy.js           # Full resolver-spec clipboard formatter
+    ├── finalMarketJson.js     # Reserved-OT-prefix validator for final JSON
+    ├── marketCard.js          # Compact market-card renderer (UI + copy)
+    ├── marketQuestionTitle.js # Title length-budget helper
+    └── resolutionDescription.js # Resolution-description markdown builder
 eval/
 ├── harness.js                 # Eval harness entry point
 ├── run.js                     # CLI runner for eval suite
@@ -220,7 +248,9 @@ eval/
 - **State management** uses React's `useReducer` (via the `useMarketReducer` custom hook) rather than an external state library, keeping the dependency footprint minimal (just `react`, `react-dom`, and `zod` at runtime).
 - **API resilience** — the OpenRouter client (`src/api/openrouter.js`) implements automatic retries with exponential backoff (3 retries at 1s/2s/4s intervals) and a shared JSON salvage helper (`src/pipeline/llmJson.js`) that recovers from truncated or fenced LLM output without losing the run.
 - **Live model list** — the app fetches available models from the OpenRouter API at startup and caches them for one hour; a static fallback list covers offline / failure scenarios. Default models (`DEFAULT_DRAFT_MODEL`, `DEFAULT_REVIEW_MODEL` in `src/constants/models.js`) are revised in lock-step with OpenRouter availability, so this README intentionally does not pin specific IDs.
-- **Prompt-injection defense** for third-party content — xAPI-fetched profile / tweet text is wrapped in an explicit `untrusted` block in the prompt with instructions for the model to treat any embedded directives as data, not instructions.
+- **Prompt-injection defense** for third-party content — xAPI-fetched profile / tweet text, user-supplied references, ideation references, and the Source of Truth URL are each wrapped in their own explicit `UNTRUSTED_*` fence in the prompt with instructions for the model to treat any embedded directives as data, not instructions. The fence sentinels are also neutralised inside the payload before injection so a crafted reference cannot break out of the block.
+- **Final-JSON structural validator** — `src/util/finalMarketJson.js` runs after the finalizer and rejects outcomes whose `name` begins with the reserved `OT` prefix (Outcome Token identifier collision per the 42.space market creation guide). Failure surfaces as a hard error in both the UI and the orchestrator log rather than producing an unspawnable market.
+- **Internationalisation** — the UI ships English and Simplified Chinese strings from a single dictionary (`src/i18n.js`). A floating EN / 中文 pill in the upper-right corner switches the active language and persists the choice in `localStorage`; validation errors and run-trace fallback messages are translated too. Adding a new language is one entry in `TRANSLATIONS` plus one button in `LanguageToggle`.
 
 ## Tech Stack
 
