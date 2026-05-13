@@ -21,8 +21,10 @@ const FINAL_JSON = {
 describe('buildResolutionDescriptionMarkdown', () => {
   it('preserves a model-provided standard description verbatim', () => {
     const markdown = [
+      'Example FC resolves to a listed outcome at 2026-12-14T14:00:00Z using the official match centre.',
+      '',
       '## Resolution Criteria:',
-      'Example FC must win at National Stadium by the UTC timestamp.',
+      'Example FC must win at National Stadium by 2026-12-14T14:00:00Z UTC.',
       '',
       '## Resolution Sources:',
       'Official Match Centre: [match page](https://example.com/match-centre?match=42); set the match filter to final.',
@@ -41,6 +43,7 @@ describe('buildResolutionDescriptionMarkdown', () => {
   it('builds the dashboard description template from final JSON', () => {
     const markdown = buildResolutionDescriptionMarkdown(FINAL_JSON);
 
+    expect(markdown).toMatch(/^Will Example FC win the Singapore Cup final/);
     expect(markdown).toContain('## Resolution Criteria:');
     expect(markdown).toContain('Example FC win the Singapore Cup final');
     expect(markdown).toContain('2026-12-14T14:00:00Z');
