@@ -107,6 +107,7 @@ function buildSummary(run, reviews) {
  * @param {object} request
  * @param {string} request.proposalText
  * @param {string|string[]} [request.references]
+ * @param {string} [request.sourceOfTruth]
  * @param {object} [request.models]
  * @param {object} [request.options]
  * @param {object} [runtime]
@@ -136,11 +137,13 @@ export async function reviewProposal(request, runtime = {}) {
   };
 
   const references = normalizeReferences(request?.references || request?.input?.references);
+  const sourceOfTruth = request?.sourceOfTruth || request?.input?.sourceOfTruth || '';
   const run = createRun({
     question: request?.question || request?.input?.question || '(existing proposal)',
     startDate: request?.startDate || request?.input?.startDate || '',
     endDate: request?.endDate || request?.input?.endDate || '',
     references,
+    sourceOfTruth,
     numberOfOutcomes: request?.numberOfOutcomes || request?.input?.numberOfOutcomes || '',
   });
   const callbacks = runtime.callbacks;
@@ -200,6 +203,7 @@ export async function reviewProposal(request, runtime = {}) {
     } else {
       const evidenceResult = await gatherEvidence({
         references,
+        sourceOfTruth,
         claims: run.claims,
         verifications: run.verification,
         fetchImpl: runtime.fetchImpl,
@@ -228,6 +232,7 @@ export async function reviewProposal(request, runtime = {}) {
       proposalText,
       RIGOR_RUBRIC,
       run.input.numberOfOutcomes || '',
+      run.input.sourceOfTruth || '',
     );
     for (const review of structuredReviews) {
       if (review.usage) cost.record('review', { usage: review.usage, wallClockMs: review.wallClockMs });

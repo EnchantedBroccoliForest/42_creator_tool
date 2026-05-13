@@ -6,6 +6,7 @@ import {
   SYSTEM_PROMPTS,
   PROTOCOL_CONTEXT,
   getSystemPrompt,
+  buildSourceOfTruthSection,
   buildDraftPrompt,
   buildReviewPrompt,
   buildDeliberationPrompt,
@@ -29,6 +30,7 @@ const SAMPLE = {
   startDate: '2026-01-01',
   endDate: '2026-12-31',
   references: 'https://example.com/source',
+  sourceOfTruth: 'https://truth.example.com/feed',
   numberOfOutcomes: '4',
   draftContent: 'DRAFT_PLACEHOLDER',
   reviews: [{ modelName: 'rev-1', content: 'critique-1' }, { modelName: 'rev-2', content: 'critique-2' }],
@@ -103,6 +105,45 @@ describe('prompt builders', () => {
     expect(out).toContain('KEEP THE OUTPUT TIGHT');
     expect(out).toContain('Potential sources for resolution');
     expect(out).toContain('EXACTLY 4 Outcome Tokens');
+  });
+
+  it('threads source of truth into draft, review, update, and finalize prompts as authoritative only after validation', () => {
+    const section = buildSourceOfTruthSection(SAMPLE.sourceOfTruth);
+    expect(section).toContain('SOURCE OF TRUTH');
+    expect(section).toContain(SAMPLE.sourceOfTruth);
+    expect(section).toContain('First check whether this source is valid');
+    expect(section).toContain('de facto resolution source');
+
+    expect(buildDraftPrompt(
+      SAMPLE.question,
+      SAMPLE.startDate,
+      SAMPLE.endDate,
+      SAMPLE.references,
+      SAMPLE.numberOfOutcomes,
+      SAMPLE.sourceOfTruth,
+    )).toContain(section);
+    expect(buildStructuredReviewPrompt(
+      SAMPLE.draftContent,
+      RIGOR_RUBRIC,
+      SAMPLE.numberOfOutcomes,
+      SAMPLE.sourceOfTruth,
+    )).toContain(section);
+    expect(buildUpdatePrompt(
+      SAMPLE.draftContent,
+      SAMPLE.reviewContent,
+      SAMPLE.humanReviewInput,
+      SAMPLE.focusBlock,
+      SAMPLE.numberOfOutcomes,
+      SAMPLE.references,
+      SAMPLE.sourceOfTruth,
+    )).toContain(section);
+    expect(buildFinalizePrompt(
+      SAMPLE.draftContent,
+      SAMPLE.startDate,
+      SAMPLE.endDate,
+      SAMPLE.numberOfOutcomes,
+      SAMPLE.sourceOfTruth,
+    )).toContain(section);
   });
 
   it('buildReviewPrompt is concise and issue-focused', () => {

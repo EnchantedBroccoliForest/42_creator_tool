@@ -10,12 +10,13 @@
  *
  * Pipeline stages, all pure client:
  *
- *   1. harvestUrls(references, claims)
+ *   1. harvestUrls(references, sourceOfTruth, claims)
  *        Extracts http(s) URLs from the user's reference block and from
- *        source-category claim text. Deduplicates by URL. Each surviving
- *        URL becomes an Evidence record with a stable id and a claimId
- *        link: URLs extracted from a source claim link to that claim,
- *        URLs from the reference block link to 'global'.
+ *        the optional source-of-truth field and source-category claim text.
+ *        Deduplicates by URL. Each surviving URL becomes an Evidence record
+ *        with a stable id and a claimId link: URLs extracted from a source
+ *        claim link to that claim, URLs from user-provided fields link to
+ *        'global'.
  *
  *   2. resolveCitation(url, { timeoutMs, fetchImpl })
  *        Performs a no-cors HEAD fetch with a short timeout. Returns
@@ -42,12 +43,14 @@
 /**
  * @typedef {Object} HarvestInput
  * @property {string} references                 raw reference block text
+ * @property {string} [sourceOfTruth]            optional definitive source
  * @property {import('../types/run').Claim[]} claims
  */
 
 /**
  * @typedef {Object} GatherEvidenceInput
  * @property {string} references
+ * @property {string} [sourceOfTruth]
  * @property {import('../types/run').Claim[]} claims
  * @property {import('../types/run').Verification[]} verifications
  * @property {typeof fetch} [fetchImpl]
@@ -99,14 +102,14 @@ function extractUrls(text) {
 }
 
 /**
- * Harvest URLs from references + source claims. Deduplicates across both
- * inputs, preferring source-claim linkage over 'global' when the same URL
- * appears in both.
+ * Harvest URLs from source-of-truth, references, and source claims.
+ * Deduplicates across all inputs, preferring source-claim linkage over
+ * 'global' when the same URL appears in multiple places.
  *
  * @param {HarvestInput} input
  * @returns {import('../types/run').Evidence[]}
  */
-export function harvestUrls({ references, claims }) {
+export function harvestUrls({ references, sourceOfTruth, claims }) {
   const byUrl = new Map();
 
   // Pass 1: source-category claims. URLs extracted here get their claimId
@@ -122,7 +125,16 @@ export function harvestUrls({ references, claims }) {
     }
   }
 
-  // Pass 2: user-provided references block. Only add URLs we have not
+  // Pass 2: user-provided source of truth. It is a global run-level source,
+  // but higher priority than general references because the user marked it
+  // as the definitive settlement source.
+  for (const url of extractUrls(sourceOfTruth)) {
+    if (!byUrl.has(url)) {
+      byUrl.set(url, { url, claimId: GLOBAL_CLAIM_ID });
+    }
+  }
+
+  // Pass 3: user-provided references block. Only add URLs we have not
   // already linked to a source claim. Any URL that appears in both places
   // keeps its source-claim linkage from Pass 1.
   for (const url of extractUrls(references)) {
@@ -131,7 +143,7 @@ export function harvestUrls({ references, claims }) {
     }
   }
 
-  // Pass 3: also scan non-source claims for inline URLs. A draft might
+  // Pass 4: also scan non-source claims for inline URLs. A draft might
   // embed a reference URL inside a resolution rule ("resolved per Reuters
   // at https://..."); that URL should count as evidence for that claim,
   // not 'global'. We only overwrite 'global' linkages — never a more
@@ -283,6 +295,7 @@ function applyResolveToVerifications(verifications, claims, resolveMap) {
 export async function gatherEvidence(input) {
   const {
     references,
+    sourceOfTruth,
     claims,
     verifications,
     fetchImpl,
@@ -290,7 +303,11 @@ export async function gatherEvidence(input) {
   } = input || {};
 
   const startedAt = Date.now();
-  const evidence = harvestUrls({ references: references || '', claims: claims || [] });
+  const evidence = harvestUrls({
+    references: references || '',
+    sourceOfTruth: sourceOfTruth || '',
+    claims: claims || [],
+  });
 
   if (evidence.length === 0) {
     return {
@@ -299,7 +316,7 @@ export async function gatherEvidence(input) {
       wallClockMs: Date.now() - startedAt,
       logEntry: {
         level: 'info',
-        message: 'Evidence: no URLs found in references or source claims.',
+        message: 'Evidence: no URLs found in source of truth, references, or source claims.',
       },
     };
   }

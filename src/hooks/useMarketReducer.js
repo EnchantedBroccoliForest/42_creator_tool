@@ -19,6 +19,7 @@ export const initialState = {
   startDate: '',
   endDate: '',
   references: '',
+  sourceOfTruth: '',
   // Optional hard restriction on the outcome-set cardinality. Stored as a
   // string because it comes straight from a text input; empty string means
   // "no restriction — let the drafter choose". When non-empty, every
@@ -260,7 +261,7 @@ export function reducer(state, action) {
 
     case 'USE_IDEA_FOR_DRAFT':
       // Switch to Draft Market mode and populate the question, references,
-      // and dates from an ideate suggestion so the user can immediately
+      // source-of-truth field, and dates from an ideate suggestion so the user can immediately
       // refine and draft. Dates are derived from the idea's suggested
       // timeframe (start defaults to tomorrow, end from the timeframe text).
       // Use ?? (not ||) so that missing payload dates preserve any
@@ -270,6 +271,7 @@ export function reducer(state, action) {
         mode: 'draft',
         question: action.question || '',
         references: action.references || '',
+        sourceOfTruth: action.sourceOfTruth ?? state.sourceOfTruth,
         startDate: action.startDate ?? state.startDate,
         endDate: action.endDate ?? state.endDate,
         dateError: null,
@@ -581,6 +583,7 @@ function rehydrateFromRun(state, run) {
     startDate: run.input?.startDate || '',
     endDate: run.input?.endDate || '',
     references: run.input?.references || '',
+    sourceOfTruth: run.input?.sourceOfTruth || '',
     numberOfOutcomes: run.input?.numberOfOutcomes || '',
     // View-state rebuild. The run-trace panel is authoritative for imported
     // review details; the main UI still renders the latest draft and final JSON.

@@ -65,6 +65,25 @@ const VALID_RUN_BASE = {
 };
 
 describe('Run.input.rigor', () => {
+  it('createRun stores optional source of truth and defaults it for older inputs', () => {
+    const withSource = createRun({
+      question: 'Q?',
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+      references: '',
+      sourceOfTruth: 'https://truth.example.com/feed',
+    });
+    expect(withSource.input.sourceOfTruth).toBe('https://truth.example.com/feed');
+
+    const withoutSource = createRun({
+      question: 'Q?',
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+      references: '',
+    });
+    expect(withoutSource.input.sourceOfTruth).toBe('');
+  });
+
   it('createRun stamps the legacy field with the supported value', () => {
     const run = createRun({
       question: 'Q?',
