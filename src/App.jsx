@@ -1061,7 +1061,9 @@ function App() {
       });
       finalContent = titleResult.finalJson;
 
-      finalContent = prepareFinalMarketPayload(finalContent);
+      finalContent = prepareFinalMarketPayload(finalContent, {
+        isEarlyResolution: earlyResolutionRiskLevel === 'high',
+      });
       const finalValidation = validateFinalMarketJson(finalContent);
       if (!finalValidation.valid) {
         throw new Error(`Final market JSON failed validation: ${finalValidation.errors.join('; ')}`);

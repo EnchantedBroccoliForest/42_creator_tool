@@ -101,7 +101,27 @@ describe('validateFinalMarketJson', () => {
     }));
 
     expect(result.valid).toBe(false);
+    expect(result.errors).toContain('description must include at least one markdown resolution source link');
     expect(result.errors).toContain('description must follow the 42 resolution markdown standard');
+  });
+
+  it('surfaces a clear error when the prepared description has no source URL', () => {
+    const prepared = prepareFinalMarketPayload({
+      refinedQuestion: 'Will Team A win?',
+      outcomes: [
+        { name: 'Yes', winCondition: 'Team A wins.', resolutionCriteria: 'Use the official feed.' },
+        { name: 'No', winCondition: 'Team A does not win.', resolutionCriteria: 'Use the official feed.' },
+      ],
+      marketStartTimeUTC: '2026-01-01T00:00:00Z',
+      marketEndTimeUTC: '2026-01-31T23:59:59Z',
+      fullResolutionRules: '1. Resolve from the official feed.',
+      edgeCases: '1. Source unavailable -> No.',
+    });
+
+    const result = validateFinalMarketJson(prepared);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('description must include at least one markdown resolution source link');
   });
 
   it('rejects payloads above the 30KB limit', () => {
@@ -133,6 +153,24 @@ describe('validateFinalMarketJson', () => {
     expect(prepared.description).toContain('## Resolution Criteria:');
     expect(prepared.resolutionDescriptionMarkdown).toBeUndefined();
     expect(JSON.stringify(prepared)).toContain('\\n## Resolution Criteria:');
+    expect(validateFinalMarketJson(prepared)).toEqual({ valid: true, errors: [] });
+  });
+
+  it('defaults missing early-resolution metadata to false during preparation', () => {
+    const prepared = prepareFinalMarketPayload({
+      refinedQuestion: 'Will Team A win?',
+      outcomes: [
+        { name: 'Yes', winCondition: 'Team A wins.', resolutionCriteria: 'Use the official feed.' },
+        { name: 'No', winCondition: 'Team A does not win.', resolutionCriteria: 'Use the official feed.' },
+      ],
+      marketStartTimeUTC: '2026-01-01T00:00:00Z',
+      marketEndTimeUTC: '2026-01-31T23:59:59Z',
+      fullResolutionRules: '1. Resolve from https://example.com/feed.',
+      edgeCases: '1. Source unavailable -> No.',
+    });
+
+    expect(prepared.is_early_resolution).toBe(false);
+    expect(prepared.whitelisted).toBe(true);
     expect(validateFinalMarketJson(prepared)).toEqual({ valid: true, errors: [] });
   });
 

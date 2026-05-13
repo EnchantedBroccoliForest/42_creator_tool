@@ -285,7 +285,6 @@ BEFORE WRITING THE JSON, silently complete this 42 Market Creation Checklist and
 4. Technical Ancillary Data Submission
 - is_early_resolution: true only for event-based markets that may resolve before the deadline; otherwise false.
 - description: compact dashboard Markdown string; encode line breaks as \\n inside the JSON string and escape double quotes.
-- whitelisted: true.
 - Payload Constraints: the whole JSON payload must fit under 30KB.
 
 CONCISENESS RULES:
@@ -338,8 +337,7 @@ Generate a JSON response with exactly these fields:
   "fullResolutionRules": "Compact numbered rules — no redundancy with outcome-level criteria",
   "edgeCases": "Numbered list: scenario → named outcome from the outcomes array",
   "description": "Compacted Markdown string following the DESCRIPTION MARKDOWN TEMPLATE exactly",
-  "is_early_resolution": false,
-  "whitelisted": true
+  "is_early_resolution": false
 }`;
 }
 

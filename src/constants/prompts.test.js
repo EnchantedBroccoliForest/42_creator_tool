@@ -208,7 +208,7 @@ describe('prompt builders', () => {
     expect(out).toContain('CONCISENESS RULES');
     expect(out).toContain('starting with one standalone summary sentence');
     expect(out).toContain('"is_early_resolution": false');
-    expect(out).toContain('"whitelisted": true');
+    expect(out).not.toContain('"whitelisted"');
     expect(out).toMatch(/Name a secondary fallback source/);
   });
 

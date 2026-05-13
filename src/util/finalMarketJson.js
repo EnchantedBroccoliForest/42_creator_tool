@@ -4,6 +4,7 @@ import {
 } from './resolutionDescription.js';
 
 export const FINAL_PAYLOAD_MAX_BYTES = 30 * 1024;
+const MARKDOWN_LINK_PATTERN = /\[[^\]]+\]\(https?:\/\/[^)]+\)/;
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -27,6 +28,10 @@ function normalizeMarkdown(value) {
     : '';
 }
 
+function hasMarkdownResolutionLink(value) {
+  return MARKDOWN_LINK_PATTERN.test(value);
+}
+
 export function prepareFinalMarketPayload(finalJson, options = {}) {
   if (!isPlainObject(finalJson) || 'raw' in finalJson) {
     return finalJson;
@@ -44,12 +49,14 @@ export function prepareFinalMarketPayload(finalJson, options = {}) {
   delete prepared.descriptionMarkdown;
   delete prepared.isEarlyResolution;
 
-  if (typeof finalJson.is_early_resolution === 'boolean') {
+  if (typeof options.isEarlyResolution === 'boolean') {
+    prepared.is_early_resolution = options.isEarlyResolution;
+  } else if (typeof finalJson.is_early_resolution === 'boolean') {
     prepared.is_early_resolution = finalJson.is_early_resolution;
   } else if (typeof finalJson.isEarlyResolution === 'boolean') {
     prepared.is_early_resolution = finalJson.isEarlyResolution;
-  } else if (typeof options.isEarlyResolution === 'boolean') {
-    prepared.is_early_resolution = options.isEarlyResolution;
+  } else {
+    prepared.is_early_resolution = false;
   }
 
   return prepared;
@@ -82,6 +89,9 @@ export function validateFinalMarketJson(finalJson) {
   if (!description) {
     errors.push('description is required for the compacted ancillary payload');
   } else {
+    if (!hasMarkdownResolutionLink(description)) {
+      errors.push('description must include at least one markdown resolution source link');
+    }
     if (!isStandardResolutionDescription(description)) {
       errors.push('description must follow the 42 resolution markdown standard');
     }

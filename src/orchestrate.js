@@ -403,7 +403,9 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
   if (titleResult.logEntry) {
     log(run, 'title_repair', titleResult.logEntry.level, titleResult.logEntry.message, callbacks);
   }
-  const preparedFinalJson = prepareFinalMarketPayload(titleResult.finalJson);
+  const preparedFinalJson = prepareFinalMarketPayload(titleResult.finalJson, {
+    isEarlyResolution: riskLevel === 'high',
+  });
   const finalValidation = validateFinalMarketJson(preparedFinalJson);
   if (!finalValidation.valid) {
     log(

@@ -54,8 +54,6 @@ function finalJson() {
       '---',
       '_Language: en_',
     ].join('\n'),
-    is_early_resolution: false,
-    whitelisted: true,
   };
 }
 
@@ -225,6 +223,8 @@ describe('orchestrate gates', () => {
       });
 
       expect(run.status).toBe('complete');
+      expect(run.finalJson.is_early_resolution).toBe(false);
+      expect(run.finalJson.whitelisted).toBe(true);
       expect(run.sourceAccessibility).toMatchObject({
         status: 'error',
         error: 'source probe infrastructure failed',
