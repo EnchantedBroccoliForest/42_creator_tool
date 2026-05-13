@@ -55,7 +55,7 @@ The original drafting model incorporates the aggregated review, claim-level rout
 
 - **Pre-finalize source check** — resolution sources named in the draft, plus the user's Source of Truth URL when supplied, are probed for accessibility so the user sees a clear per-source pass/fail list before committing.
 - **Early-resolution risk analysis** — a lightweight analyst pass (`src/util/riskLevel.js` + prompts) estimates whether the market could collapse to certainty well before the end date, since 42.space's bonding curve depends on a meaningful trade phase.
-- **Finalize** — the draft is converted into structured JSON matching the Outcome Token spawn shape: an array of outcomes (each with its own resolution criteria), start/end times in UTC, a short description, a resolution-description markdown block, full resolution rules, and edge cases. A post-finalize validator (`src/util/finalMarketJson.js`) rejects any outcome name that begins with the reserved `OT` token prefix, since those names collide with Outcome Token identifiers in the 42.space market creation guide. In the UI, the finalized output renders as a compact market card by default with a "Show full resolver spec" expansion; both views are copyable to clipboard.
+- **Finalize** — the draft is converted into structured JSON matching the Outcome Token spawn shape: an array of outcomes (each with its own resolution criteria), start/end times in UTC, a short description, a compact `description` markdown payload, full resolution rules, edge cases, `is_early_resolution`, and `whitelisted: true`. Before emitting JSON, the finalizer prompt now runs through the 42 Market Creation Checklist: deterministic source, non-foregone outcome, exhaustive outcome set, professional non-`OT` names, standard markdown description, early-resolution flag, whitelist visibility, and the 30KB payload cap. A post-finalize validator (`src/util/finalMarketJson.js`) enforces the deterministic parts of that contract. In the UI, the finalized output renders as a compact market card by default with a "Show full resolver spec" expansion; both views are copyable to clipboard.
 
 ### Output Style
 
@@ -220,7 +220,7 @@ src/
     ├── draftInput.js          # Date / form input parsing + validation
     ├── externalUrl.js         # Safe-external-URL parsing
     ├── finalCopy.js           # Full resolver-spec clipboard formatter
-    ├── finalMarketJson.js     # Reserved-OT-prefix validator for final JSON
+    ├── finalMarketJson.js     # Final payload preparation + checklist validation
     ├── marketCard.js          # Compact market-card renderer (UI + copy)
     ├── marketQuestionTitle.js # Title length-budget helper
     └── resolutionDescription.js # Resolution-description markdown builder
@@ -249,7 +249,7 @@ eval/
 - **API resilience** — the OpenRouter client (`src/api/openrouter.js`) implements automatic retries with exponential backoff (3 retries at 1s/2s/4s intervals) and a shared JSON salvage helper (`src/pipeline/llmJson.js`) that recovers from truncated or fenced LLM output without losing the run.
 - **Live model list** — the app fetches available models from the OpenRouter API at startup and caches them for one hour; a static fallback list covers offline / failure scenarios. Default models (`DEFAULT_DRAFT_MODEL`, `DEFAULT_REVIEW_MODEL` in `src/constants/models.js`) are revised in lock-step with OpenRouter availability, so this README intentionally does not pin specific IDs.
 - **Prompt-injection defense** for third-party content — xAPI-fetched profile / tweet text, user-supplied references, ideation references, and the Source of Truth URL are each wrapped in their own explicit `UNTRUSTED_*` fence in the prompt with instructions for the model to treat any embedded directives as data, not instructions. The fence sentinels are also neutralised inside the payload before injection so a crafted reference cannot break out of the block.
-- **Final-JSON structural validator** — `src/util/finalMarketJson.js` runs after the finalizer and rejects outcomes whose `name` begins with the reserved `OT` prefix (Outcome Token identifier collision per the 42.space market creation guide). Failure surfaces as a hard error in both the UI and the orchestrator log rather than producing an unspawnable market.
+- **Final-JSON structural validator** — `src/util/finalMarketJson.js` runs after the finalizer and prepares the compact ancillary payload. It rejects missing/invalid `description`, non-standard resolution markdown, missing `is_early_resolution`, `whitelisted !== true`, payloads over 30KB, and outcomes whose `name` begins with the reserved `OT` prefix (Outcome Token identifier collision per the 42.space market creation guide). Failure surfaces as a hard error in both the UI and the orchestrator log rather than producing an unspawnable market.
 - **Internationalisation** — the UI ships English and Simplified Chinese strings from a single dictionary (`src/i18n.js`). A floating EN / 中文 pill in the upper-right corner switches the active language and persists the choice in `localStorage`; validation errors and run-trace fallback messages are translated too. Adding a new language is one entry in `TRANSLATIONS` plus one button in `LanguageToggle`.
 
 ## Tech Stack
