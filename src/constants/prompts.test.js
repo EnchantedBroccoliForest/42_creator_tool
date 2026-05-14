@@ -204,11 +204,8 @@ describe('prompt builders', () => {
   it('buildFinalizePrompt uses the trader-title budget and description template', () => {
     const out = buildFinalizePrompt(SAMPLE.draftContent, SAMPLE.startDate, SAMPLE.endDate, SAMPLE.numberOfOutcomes);
     expect(out).toContain('refinedQuestion: trader-facing market title, max 70 chars');
-    expect(out).toContain('42 Market Creation Checklist');
     expect(out).toContain('CONCISENESS RULES');
     expect(out).toContain('starting with one standalone summary sentence');
-    expect(out).toContain('"is_early_resolution": false');
-    expect(out).not.toContain('"whitelisted"');
     expect(out).toMatch(/Name a secondary fallback source/);
   });
 

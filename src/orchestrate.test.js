@@ -39,21 +39,6 @@ function finalJson() {
     shortDescription: 'Tracks whether Team A wins.',
     fullResolutionRules: `Resolve from ${SOURCE_URL}.`,
     edgeCases: 'If the source is unavailable, No wins.',
-    description: [
-      'Will Team A win resolves to one of Yes or No at 2026-01-31T23:59:59Z using the dead.example feed.',
-      '',
-      '## Resolution Criteria:',
-      'Resolve using the official result at 2026-01-31T23:59:59Z UTC.',
-      '',
-      '## Resolution Sources:',
-      `Official Feed: [official feed](${SOURCE_URL}); use the final result page state.`,
-      '',
-      '## Additional Information:',
-      'If the source is unavailable, No wins. Resolution window: resolved within 24 hours after the index timestamp.',
-      '',
-      '---',
-      '_Language: en_',
-    ].join('\n'),
   };
 }
 
@@ -223,8 +208,6 @@ describe('orchestrate gates', () => {
       });
 
       expect(run.status).toBe('complete');
-      expect(run.finalJson.is_early_resolution).toBe(false);
-      expect(run.finalJson.whitelisted).toBe(true);
       expect(run.sourceAccessibility).toMatchObject({
         status: 'error',
         error: 'source probe infrastructure failed',

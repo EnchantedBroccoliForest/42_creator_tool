@@ -39,7 +39,7 @@ import { aggregate } from './pipeline/aggregate.js';
 import { RIGOR_RUBRIC } from './constants/rubric.js';
 import { enrichReferencesWithXData } from './pipeline/xapi.js';
 import { parseRiskLevel } from './util/riskLevel.js';
-import { prepareFinalMarketPayload, validateFinalMarketJson } from './util/finalMarketJson.js';
+import { validateFinalMarketJson } from './util/finalMarketJson.js';
 import { createRun } from './types/run.js';
 import { assignShortIds } from './report/shortIds.js';
 import {
@@ -403,10 +403,7 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
   if (titleResult.logEntry) {
     log(run, 'title_repair', titleResult.logEntry.level, titleResult.logEntry.message, callbacks);
   }
-  const preparedFinalJson = prepareFinalMarketPayload(titleResult.finalJson, {
-    isEarlyResolution: riskLevel === 'high',
-  });
-  const finalValidation = validateFinalMarketJson(preparedFinalJson);
+  const finalValidation = validateFinalMarketJson(titleResult.finalJson);
   if (!finalValidation.valid) {
     log(
       run,
@@ -417,7 +414,7 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
     );
     throw new Error(`Final market JSON failed validation: ${finalValidation.errors.join('; ')}`);
   }
-  run.finalJson = preparedFinalJson;
+  run.finalJson = titleResult.finalJson;
   return gateResult;
 }
 
