@@ -47,13 +47,14 @@ import { tryParseJsonObject, createUsageAggregator } from './llmJson.js';
  * @param {{id:string, name:string}} model        reviewer
  * @param {string} draftContent                   the draft being reviewed
  * @param {import('../constants/rubric').RubricItem[]} rubric
- * @param {string} [numberOfOutcomes]             optional hard restriction on
- *                                                the outcome-set cardinality;
- *                                                empty string means no
- *                                                restriction (default).
+ * @param {string[]} [proposedOutcomes]           user-specified outcome
+ *                                                names (hard restriction);
+ *                                                empty array means "no
+ *                                                restriction — drafter
+ *                                                proposes" (default).
  * @returns {Promise<StructuredReviewResult>}
  */
-export async function runStructuredReview(model, draftContent, rubric, numberOfOutcomes = '') {
+export async function runStructuredReview(model, draftContent, rubric, proposedOutcomes = []) {
   const rubricIds = new Set(rubric.map((r) => r.id));
   const { aggregate, accumulate } = createUsageAggregator();
 
@@ -64,7 +65,7 @@ export async function runStructuredReview(model, draftContent, rubric, numberOfO
       model.id,
       [
         { role: 'system', content: getSystemPrompt('structuredReviewer') },
-        { role: 'user', content: buildStructuredReviewPrompt(draftContent, rubric, numberOfOutcomes) },
+        { role: 'user', content: buildStructuredReviewPrompt(draftContent, rubric, proposedOutcomes) },
       ],
       { temperature: 0.4, maxTokens: 3000 }
     );
@@ -98,7 +99,7 @@ export async function runStructuredReview(model, draftContent, rubric, numberOfO
           { role: 'system', content: getSystemPrompt('structuredReviewer') },
           {
             role: 'user',
-            content: buildStrictStructuredReviewRetryPrompt(draftContent, rubric, numberOfOutcomes),
+            content: buildStrictStructuredReviewRetryPrompt(draftContent, rubric, proposedOutcomes),
           },
         ],
         { temperature: 0.2, maxTokens: 3000 }
@@ -196,15 +197,14 @@ export async function runStructuredReview(model, draftContent, rubric, numberOfO
  * @param {Array<{id:string, name:string}>} models
  * @param {string} draftContent
  * @param {import('../constants/rubric').RubricItem[]} rubric
- * @param {string} [numberOfOutcomes]  optional hard restriction on the
- *                                     outcome-set cardinality (propagated to
- *                                     every reviewer); empty string = no
- *                                     restriction.
+ * @param {string[]} [proposedOutcomes]  user-specified outcome names
+ *                                       (propagated to every reviewer);
+ *                                       empty array = drafter proposes.
  * @returns {Promise<StructuredReviewResult[]>}
  */
-export async function runStructuredReviewsParallel(models, draftContent, rubric, numberOfOutcomes = '') {
+export async function runStructuredReviewsParallel(models, draftContent, rubric, proposedOutcomes = []) {
   const settled = await Promise.allSettled(
-    models.map((m) => runStructuredReview(m, draftContent, rubric, numberOfOutcomes))
+    models.map((m) => runStructuredReview(m, draftContent, rubric, proposedOutcomes))
   );
   return settled.map((s, i) => {
     if (s.status === 'fulfilled') return s.value;

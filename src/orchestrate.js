@@ -235,7 +235,7 @@ async function runReviewStage(run, models, options, cost, callbacks) {
     models.reviewers,
     run.drafts[run.drafts.length - 1].content,
     RIGOR_RUBRIC,
-    run.input?.numberOfOutcomes || '',
+    run.input?.proposedOutcomes || [],
   );
   for (const r of structured) {
     if (r.usage) cost.record('review', { usage: r.usage, wallClockMs: r.wallClockMs });
@@ -292,7 +292,7 @@ async function runUpdateStage(run, models, options, fetchImpl, cost, callbacks, 
     models.drafter,
     [
       { role: 'system', content: getSystemPrompt('drafter') },
-      { role: 'user', content: buildUpdatePrompt(latestDraft, reviewText, humanFeedback, focusBlock, run.input?.numberOfOutcomes || '', referencesStr) },
+      { role: 'user', content: buildUpdatePrompt(latestDraft, reviewText, humanFeedback, focusBlock, run.input?.proposedOutcomes || [], referencesStr) },
     ],
     { maxTokens: 8000 },
   );
@@ -386,7 +386,7 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
     models.drafter,
     [
       { role: 'system', content: getSystemPrompt('finalizer') },
-      { role: 'user', content: buildFinalizePrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.numberOfOutcomes || '') },
+      { role: 'user', content: buildFinalizePrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.proposedOutcomes || []) },
     ],
     { temperature: 0.3, maxTokens: DRAFT_MAX_TOKENS },
   );
@@ -533,7 +533,7 @@ async function _orchestrateInner(config, signal) {
     startDate: input?.startDate || '',
     endDate: input?.endDate || '',
     references: referencesStr,
-    numberOfOutcomes: input?.numberOfOutcomes || '',
+    proposedOutcomes: Array.isArray(input?.proposedOutcomes) ? input.proposedOutcomes : [],
   });
 
   let riskLevel = 'unknown';
@@ -569,7 +569,7 @@ async function _orchestrateInner(config, signal) {
             input?.startDate || '',
             input?.endDate || '',
             referencesStr,
-            input?.numberOfOutcomes || '',
+            input?.proposedOutcomes || [],
           ),
         },
       ],

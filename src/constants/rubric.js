@@ -44,9 +44,9 @@ export const RIGOR_RUBRIC = [
   {
     id: 'objective_source',
     question:
-      'Does the resolution map onto a clearly named, machine-readable, objectively verifiable source that an oracle can read deterministically?',
+      'Does the resolution map onto a clearly named, machine-readable, objectively verifiable source that an anonymous oracle can read deterministically — no API key, login, or paid subscription required?',
     rationale:
-      'A source that is ambiguous, paywalled, editorial, interpretive, or self-referential turns the market into an opinion poll and breaks 42\'s objective-oracle settlement pipeline. Sources must be official scoreboards, awards-body announcements, government / exchange feeds, on-chain data, or official APIs.',
+      'A source that is ambiguous, paywalled, editorial, interpretive, or self-referential turns the market into an opinion poll and breaks 42\'s objective-oracle settlement pipeline. Sources must be official scoreboards, awards-body announcements, government / exchange feeds, on-chain data, or official APIs. URLs that require a private api_key, Bearer token, signed-in session, or paid subscription (`?api_key=...`, `Authorization:` headers, login pages, paywalled feeds) are not public oracles and are forbidden — vote NO whenever a cited source is gated and the draft does not offer a public-read mirror.',
   },
   {
     id: 'timing_unambiguous',
