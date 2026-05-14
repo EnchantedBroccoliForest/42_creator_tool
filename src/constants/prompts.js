@@ -263,30 +263,6 @@ export function buildFinalizePrompt(draftContent, startDate, endDate, numberOfOu
   const voiceRider = '\n\nVOICE: write as a human editor would on a market card — natural, specific, decisive. The CONCISENESS RULES below still apply.';
   return `Based on the following 42.space market draft, generate the final market details in a structured JSON format. Each entry in the "outcomes" array will become an Outcome Token spawned at launch and must respect the protocol rules in your system prompt.${outcomeCountSection}${voiceRider}
 
-BEFORE WRITING THE JSON, silently complete this 42 Market Creation Checklist and repair the output until every item passes. Do not include the checklist in the response.
-
-1. Market Viability
-- Deterministic Resolution: the market is absolutely resolvable using a designated deterministic source.
-- Outcome Unpredictability: the market is not a foregone conclusion or a live-on-date/source-tick market with a free answer.
-- Operational Readiness: event-based markets specify active monitoring requirements and alert triggers before resolution.
-
-2. Outcome Set Configuration
-- Exhaustiveness: no edge case can leave collateral stranded; include "Other / None", "Field", or complete range boundaries where needed.
-- Human-Readable Names: outcome names are clear, professional, and match the market intent.
-- Naming Conventions: no outcome name begins with "OT"; that prefix is reserved for the automated on-chain display format.
-
-3. Resolution Description Markdown Standard
-- Summary Sentence: the description starts with one concise sentence capturing who, what, when, where, and how the market resolves.
-- Defined Sources: at least one resolution source is linked with [label](url) syntax and includes exact UI parameters such as candle interval, close price, filter, scoreboard state, or endpoint field.
-- Eligibility & Requirements: criteria include specific UTC timestamps and eligibility windows.
-- Edge Case Handling: Additional Information covers secondary conditions, scope limits, exclusions, fallback sources, delays, ties, cancellations, and source unavailability.
-- Language Footer: the description ends with "---" and "_Language: en_" unless the market is explicitly in another ISO 639-1 language.
-
-4. Technical Ancillary Data Submission
-- is_early_resolution: true only for event-based markets that may resolve before the deadline; otherwise false.
-- description: compact dashboard Markdown string; encode line breaks as \\n inside the JSON string and escape double quotes.
-- Payload Constraints: the whole JSON payload must fit under 30KB.
-
 CONCISENESS RULES:
 - refinedQuestion: trader-facing market title, max ${titleMaxChars} chars. Pattern: "Will/Which/Who + subject + outcome + date/window?" Keep resolver detail, sources, exact timestamps, edge cases, and protocol mechanics out of the title.
 - Cut all output text by at least 50% compared to the draft. Be terse and direct.
@@ -296,7 +272,7 @@ CONCISENESS RULES:
 - shortDescription: max 15 words.
 - fullResolutionRules: compact numbered list, max 1 line per rule. No prose.
 - edgeCases: compact numbered list, format "scenario → named outcome it resolves to", max 1 line each. Every edge case must terminate in a named outcome from the outcomes array above (or its catch-all).
-- description: dashboard-ready Markdown for the \`description\` field. Follow the template exactly, starting with one standalone summary sentence. Encode it as one JSON string with \\n line breaks. Use one clickable external source link in [label](url) syntax; no bare URLs.
+- resolutionDescriptionMarkdown: dashboard-ready Markdown for the \`description\` field. Follow the template exactly, starting with one standalone summary sentence. Encode it as one JSON string with \\n line breaks. Use one clickable external source link in [label](url) syntax; no bare URLs.
 
 DESCRIPTION MARKDOWN TEMPLATE:
 <one standalone sentence capturing who/what resolves, the eligible outcomes, the resolution timestamp or event, and how the winner is selected>
@@ -336,8 +312,7 @@ Generate a JSON response with exactly these fields:
   "shortDescription": "One sentence market description",
   "fullResolutionRules": "Compact numbered rules — no redundancy with outcome-level criteria",
   "edgeCases": "Numbered list: scenario → named outcome from the outcomes array",
-  "description": "Compacted Markdown string following the DESCRIPTION MARKDOWN TEMPLATE exactly",
-  "is_early_resolution": false
+  "resolutionDescriptionMarkdown": "Markdown string following the DESCRIPTION MARKDOWN TEMPLATE exactly"
 }`;
 }
 

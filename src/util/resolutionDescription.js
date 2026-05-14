@@ -5,7 +5,6 @@ const STANDARD_HEADINGS = [
 ];
 
 const URL_PATTERN = /https?:\/\/[^\s)\]}>"']+/gi;
-const ISO_UTC_PATTERN = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z\b/;
 
 function toText(value) {
   if (value == null) return '';
@@ -67,60 +66,11 @@ function normalizeMarkdown(markdown) {
     : '';
 }
 
-function firstNonEmptyLine(value) {
-  return normalizeMarkdown(value).split('\n').map((line) => line.trim()).find(Boolean) || '';
-}
-
-function sectionText(markdown, heading) {
-  const normalized = normalizeMarkdown(markdown);
-  const start = normalized.indexOf(heading);
-  if (start === -1) return '';
-  const afterHeading = normalized.slice(start + heading.length);
-  const nextHeading = afterHeading.search(/\n##\s+/);
-  return (nextHeading === -1 ? afterHeading : afterHeading.slice(0, nextHeading)).trim();
-}
-
-function hasSummarySentence(markdown) {
-  const normalized = normalizeMarkdown(markdown);
-  const firstHeading = normalized.indexOf('## Resolution Criteria:');
-  if (firstHeading <= 0) return false;
-  const summary = firstNonEmptyLine(normalized.slice(0, firstHeading));
-  return summary.length > 0 && !summary.startsWith('#') && /[.!?]$/.test(summary);
-}
-
 export function isStandardResolutionDescription(markdown) {
   const normalized = normalizeMarkdown(markdown);
-  const sources = sectionText(normalized, '## Resolution Sources:');
-  const criteria = sectionText(normalized, '## Resolution Criteria:');
   return STANDARD_HEADINGS.every((heading) => normalized.includes(heading))
-    && hasSummarySentence(normalized)
-    && /\[[^\]]+\]\(https?:\/\/[^)]+\)/.test(sources)
-    && ISO_UTC_PATTERN.test(criteria)
     && normalized.includes('---')
     && /_Language:\s*[a-z]{2}_/i.test(normalized);
-}
-
-function buildSummarySentence(finalJson) {
-  const question = oneLine(finalJson?.refinedQuestion || finalJson?.question);
-  const end = oneLine(finalJson?.marketEndTimeUTC);
-  const outcomes = Array.isArray(finalJson?.outcomes)
-    ? finalJson.outcomes.map((outcome) => oneLine(outcome?.name)).filter(Boolean)
-    : [];
-  const url = findFirstUrl(
-    finalJson?.description,
-    finalJson?.resolutionDescriptionMarkdown,
-    finalJson?.descriptionMarkdown,
-    finalJson?.resolutionSourceUrl,
-    finalJson?.fullResolutionRules,
-    finalJson?.outcomes,
-  );
-  const sourceName = oneLine(finalJson?.resolutionSourceName) || (url ? hostFromUrl(url) : 'the defined resolution source');
-  const outcomeText = outcomes.length > 0
-    ? `one of ${outcomes.slice(0, 4).join(', ')}${outcomes.length > 4 ? ', or another listed outcome' : ''}`
-    : 'one of the listed outcomes';
-  const subject = question || 'This 42.space market';
-  const timing = end ? ` at ${end}` : ' at the UTC resolution timestamp';
-  return `${subject} resolves to ${outcomeText}${timing} using ${sourceName}.`;
 }
 
 function buildResolutionCriteria(finalJson) {
@@ -146,7 +96,6 @@ function buildResolutionCriteria(finalJson) {
 
 function buildResolutionSources(finalJson) {
   const url = findFirstUrl(
-    finalJson?.description,
     finalJson?.resolutionDescriptionMarkdown,
     finalJson?.resolutionSourceUrl,
     finalJson?.fullResolutionRules,
@@ -177,7 +126,7 @@ function buildAdditionalInformation(finalJson) {
 
 export function buildResolutionDescriptionMarkdown(finalJson, options = {}) {
   const modelMarkdown = normalizeMarkdown(
-    finalJson?.description || finalJson?.resolutionDescriptionMarkdown || finalJson?.descriptionMarkdown,
+    finalJson?.resolutionDescriptionMarkdown || finalJson?.descriptionMarkdown,
   );
   if (isStandardResolutionDescription(modelMarkdown)) {
     return modelMarkdown;
@@ -188,8 +137,6 @@ export function buildResolutionDescriptionMarkdown(finalJson, options = {}) {
   );
 
   return [
-    buildSummarySentence(finalJson),
-    '',
     '## Resolution Criteria:',
     buildResolutionCriteria(finalJson),
     '',
