@@ -28,6 +28,10 @@ export function createInitialState() {
   startDate: getTodayIsoDate(),
   endDate: '',
   references: '',
+  // Optional user-provided definitive resolution source. Threaded into every
+  // drafter / reviewer / finalizer prompt as an UNTRUSTED block so the model
+  // can validate it before treating it as authoritative. Empty string = none.
+  sourceOfTruth: '',
   // User-specified outcome set. Empty array = let the drafter propose
   // outcomes. When non-empty, every drafter / reviewer / finalizer prompt
   // receives the names as a hard rule (use these exact outcomes, do not
@@ -288,7 +292,7 @@ export function reducer(state, action) {
 
     case 'USE_IDEA_FOR_DRAFT':
       // Switch to Draft Market mode and populate the question, references,
-      // and dates from an ideate suggestion so the user can immediately
+      // source-of-truth field, and dates from an ideate suggestion so the user can immediately
       // refine and draft. Dates are derived from the idea's suggested
       // timeframe (start defaults to tomorrow, end from the timeframe text).
       // Use ?? (not ||) so that missing payload dates preserve any
@@ -298,6 +302,7 @@ export function reducer(state, action) {
         mode: 'draft',
         question: action.question || '',
         references: action.references || '',
+        sourceOfTruth: action.sourceOfTruth ?? state.sourceOfTruth,
         startDate: action.startDate ?? state.startDate,
         endDate: action.endDate ?? state.endDate,
         dateError: null,
@@ -609,6 +614,7 @@ function rehydrateFromRun(state, run) {
     startDate: run.input?.startDate || '',
     endDate: run.input?.endDate || '',
     references: run.input?.references || '',
+    sourceOfTruth: run.input?.sourceOfTruth || '',
     proposedOutcomes: Array.isArray(run.input?.proposedOutcomes)
       ? [...run.input.proposedOutcomes]
       : [],

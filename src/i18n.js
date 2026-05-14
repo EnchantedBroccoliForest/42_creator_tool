@@ -45,6 +45,15 @@ const EN = {
   "form.references": "References",
   "form.referencesPlaceholder":
     "Paste links or notes for the AI to reference, one per line...",
+  "form.sourceOfTruth": "Source of Truth",
+  "form.sourceOfTruthPlaceholder":
+    "Optional. Paste a definitive resolution source URL — the model will validate it before treating it as authoritative.",
+  "origin.sourceOfTruth": "source of truth",
+  "origin.sourceClaim": "source claim",
+  "origin.resolutionSection": "resolution section",
+  "origin.references": "references block",
+  "origin.draftBody": "draft body",
+  "trace.sourceOfTruth": "Source of Truth",
   "form.outcomes": "Outcomes",
   "form.outcomesHint": "Leave blank to let the drafter propose outcomes.",
   "form.outcomeNamePlaceholder": "e.g. Team A wins",
@@ -195,12 +204,6 @@ const EN = {
     "Some cited data sources did not resolve from the browser. Revise the draft with working URLs, or acknowledge to finalize anyway.",
   "gate.sourceAck": "Acknowledge unreachable sources & unlock Finalize",
   "gate.unknownError": "unknown error",
-
-  // Origin labels
-  "origin.sourceClaim": "source claim",
-  "origin.resolutionSection": "resolution section",
-  "origin.references": "references block",
-  "origin.draftBody": "draft body",
 
   // Claim categories
   "claimCategory.resolutionSource": "Resolution source",
@@ -410,6 +413,15 @@ const ZH = {
   "form.optional": "(可选)",
   "form.references": "参考资料",
   "form.referencesPlaceholder": "粘贴 AI 可参考的链接或备注,每行一条……",
+  "form.sourceOfTruth": "权威来源",
+  "form.sourceOfTruthPlaceholder":
+    "可选。粘贴一个权威的解析来源 URL — 模型会先校验再视其为权威来源。",
+  "origin.sourceOfTruth": "权威来源",
+  "origin.sourceClaim": "来源陈述",
+  "origin.resolutionSection": "决议章节",
+  "origin.references": "参考资料",
+  "origin.draftBody": "草稿正文",
+  "trace.sourceOfTruth": "权威来源",
   "form.outcomes": "结果集",
   "form.outcomesHint": "留空让起草者自动提议结果。",
   "form.outcomeNamePlaceholder": "例如:A 队获胜",
@@ -556,12 +568,6 @@ const ZH = {
     "部分引用的数据源无法在浏览器中解析。请用可用的 URL 修改草稿,或确认后强制定稿。",
   "gate.sourceAck": "确认无法访问的数据源并解锁「定稿」",
   "gate.unknownError": "未知错误",
-
-  // Origin labels
-  "origin.sourceClaim": "来源陈述",
-  "origin.resolutionSection": "决议章节",
-  "origin.references": "参考资料",
-  "origin.draftBody": "草稿正文",
 
   // Claim categories
   "claimCategory.resolutionSource": "决议来源",

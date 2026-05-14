@@ -6,6 +6,7 @@ import {
   SYSTEM_PROMPTS,
   PROTOCOL_CONTEXT,
   getSystemPrompt,
+  buildSourceOfTruthSection,
   buildDraftPrompt,
   buildReviewPrompt,
   buildDeliberationPrompt,
@@ -31,6 +32,7 @@ const SAMPLE = {
   endDate: '2026-12-31',
   references: 'https://example.com/source',
   proposedOutcomes: ['Taylor Swift', 'Drake', 'Sabrina Carpenter', 'Other / None'],
+  sourceOfTruth: 'https://truth.example.com/feed',
   draftContent: 'DRAFT_PLACEHOLDER',
   reviews: [{ modelName: 'rev-1', content: 'critique-1' }, { modelName: 'rev-2', content: 'critique-2' }],
   reviewContent: 'review-text',
@@ -139,6 +141,45 @@ describe('prompt builders', () => {
     expect(block).not.toContain('3.');
   });
 
+  it('threads source of truth into draft, review, update, and finalize prompts as authoritative only after validation', () => {
+    const section = buildSourceOfTruthSection(SAMPLE.sourceOfTruth);
+    expect(section).toContain('SOURCE OF TRUTH');
+    expect(section).toContain(SAMPLE.sourceOfTruth);
+    expect(section).toContain('First check whether this source is valid');
+    expect(section).toContain('de facto resolution source');
+
+    expect(buildDraftPrompt(
+      SAMPLE.question,
+      SAMPLE.startDate,
+      SAMPLE.endDate,
+      SAMPLE.references,
+      SAMPLE.numberOfOutcomes,
+      SAMPLE.sourceOfTruth,
+    )).toContain(section);
+    expect(buildStructuredReviewPrompt(
+      SAMPLE.draftContent,
+      RIGOR_RUBRIC,
+      SAMPLE.numberOfOutcomes,
+      SAMPLE.sourceOfTruth,
+    )).toContain(section);
+    expect(buildUpdatePrompt(
+      SAMPLE.draftContent,
+      SAMPLE.reviewContent,
+      SAMPLE.humanReviewInput,
+      SAMPLE.focusBlock,
+      SAMPLE.numberOfOutcomes,
+      SAMPLE.references,
+      SAMPLE.sourceOfTruth,
+    )).toContain(section);
+    expect(buildFinalizePrompt(
+      SAMPLE.draftContent,
+      SAMPLE.startDate,
+      SAMPLE.endDate,
+      SAMPLE.numberOfOutcomes,
+      SAMPLE.sourceOfTruth,
+    )).toContain(section);
+  });
+
   it('buildReviewPrompt is concise and issue-focused', () => {
     const out = buildReviewPrompt(SAMPLE.draftContent);
     expect(out).toContain('Surface up to three material concerns');
@@ -211,14 +252,18 @@ describe('prompt builders', () => {
     expect(summaryIdx).toBeLessThan(criteriaIdx);
     expect(criteriaIdx).toBeLessThan(sourceIdx);
     expect(sourceIdx).toBeLessThan(additionalIdx);
-    // Resolution Source is a bulleted list; primary is required, secondary
-    // is optional and must be omitted entirely when no fallback exists.
-    expect(out).toMatch(/PRIMARY source/);
-    expect(out).toMatch(/SECONDARY source/);
+    // Resolution Source is a bulleted list whose bullets are introduced by
+    // the literal "Primary source:" / "Secondary source:" leaders, and
+    // secondary is optional (must be omitted entirely when no fallback exists).
+    expect(out).toMatch(/begins literally with "Primary source:"/);
+    expect(out).toMatch(/begins literally with "Secondary source:"/);
     expect(out).toMatch(/emit ONLY the primary bullet/);
     expect(out).toMatch(/no api_key query parameters/);
-    // Additional Information must also be a bulleted list of succinct sentences.
+    // Criteria and Additional Information must both be bulleted lists; the
+    // Criteria bullets are full proper sentences, the Additional Information
+    // bullets are succinct sentences.
     expect(out).toMatch(/Markdown bulleted list/);
+    expect(out).toMatch(/EACH BULLET MUST BE A COMPLETE, PROPERLY STRUCTURED SENTENCE/);
     expect(out).toMatch(/EACH BULLET MUST BE A SINGLE SUCCINCT SENTENCE/);
   });
 

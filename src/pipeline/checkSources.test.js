@@ -7,8 +7,8 @@
  *   1. URL-origin precedence: the same URL can appear in a source claim,
  *      the draft's resolution section, the references block, and the
  *      draft body. checkResolutionSources must label it with the
- *      highest-priority origin (source_claim > resolution_section >
- *      references > draft_body) so the pre-finalize gate surfaces
+ *      highest-priority origin (source_of_truth > source_claim >
+ *      resolution_section > references > draft_body) so the pre-finalize gate surfaces
  *      resolution-critical sources first.
  *
  *   2. Status classification: the gate's `status` field maps directly to
@@ -41,6 +41,29 @@ function sourceClaim(id, text) {
 }
 
 describe('checkResolutionSources — URL-origin precedence', () => {
+  it('labels the user source of truth as source_of_truth even when it appears elsewhere', async () => {
+    const url = 'https://truth.example.com/feed';
+    const draft = `Resolution Rules: resolve via ${url}.`;
+    const references = `${url}`;
+    const claims = [sourceClaim('claim.source.0', `Source feed: ${url}`)];
+
+    const result = await checkResolutionSources({
+      draftContent: draft,
+      references,
+      sourceOfTruth: url,
+      claims,
+      fetchImpl: makeFetch([url]),
+    });
+
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0]).toMatchObject({
+      url,
+      origin: 'source_of_truth',
+      claimId: null,
+      accessible: true,
+    });
+  });
+
   it('labels a URL that appears in a source claim as source_claim even when it is also in the references block and draft body', async () => {
     const url = 'https://api.example.com/scoreboard';
     const draft = `Resolution Rules: see ${url} for the official feed.`;
@@ -116,8 +139,8 @@ Resolve via ${url}.
   });
 
   it('deduplicates across origins and keeps the highest-priority label when a URL appears in multiple places', async () => {
-    // Priority order documented in the module: source_claim >
-    // resolution_section > references > draft_body.
+    // Priority order documented in the module: source_of_truth >
+    // source_claim > resolution_section > references > draft_body.
     const urlA = 'https://a.example.com';
     const urlB = 'https://b.example.com';
     const urlC = 'https://c.example.com';

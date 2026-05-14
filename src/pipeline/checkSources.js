@@ -10,8 +10,9 @@
  * JSON.
  *
  * The check is scoped to what a 42.space oracle would need to read at
- * settlement time: the draft's resolution section, any source-category
- * claims the extractor produced, and the user-provided references block.
+ * settlement time: the user's source-of-truth field, the draft's resolution
+ * section, any source-category claims the extractor produced, and the
+ * user-provided references block.
  * URLs are deduplicated and probed in parallel via `resolveCitation` from
  * gatherEvidence (no-cors GET with a short timeout). Non-URL sources
  * (e.g. "official data feed for X") are reported but not fetch-checkable.
@@ -67,7 +68,7 @@ function extractResolutionSection(draftContent) {
 /**
  * @typedef {Object} SourceCheckEntry
  * @property {string} url
- * @property {'resolution_section'|'source_claim'|'references'|'draft_body'} origin
+ * @property {'source_of_truth'|'resolution_section'|'source_claim'|'references'|'draft_body'} origin
  * @property {string|null} claimId        source-category claim id, if any
  * @property {boolean} accessible         true iff resolveCitation returned true
  */
@@ -86,6 +87,7 @@ function extractResolutionSection(draftContent) {
  * @typedef {Object} CheckResolutionSourcesInput
  * @property {string} draftContent                        the updated draft text
  * @property {string} references                          user-provided references block
+ * @property {string} [sourceOfTruth]                     user-provided definitive source
  * @property {import('../types/run').Claim[]} [claims]    latest extracted claims (may be empty)
  * @property {typeof fetch} [fetchImpl]                   override for tests
  * @property {number} [timeoutMs]                         per-URL timeout
@@ -96,10 +98,11 @@ function extractResolutionSection(draftContent) {
  * clear per-source pass/fail list the UI can render as a pre-finalize gate.
  *
  * URLs are collected, in descending priority, from:
- *   1. source-category claims (extractor-identified resolution sources)
- *   2. a best-effort "Resolution Rules" / "Sources" section of the draft
- *   3. the user-provided references block
- *   4. any other http(s) URLs embedded in the draft body
+ *   1. the user-provided source-of-truth field
+ *   2. source-category claims (extractor-identified resolution sources)
+ *   3. a best-effort "Resolution Rules" / "Sources" section of the draft
+ *   4. the user-provided references block
+ *   5. any other http(s) URLs embedded in the draft body
  *
  * A URL that appears in more than one location keeps its highest-priority
  * origin label so the UI can surface "resolution source" first.
@@ -112,6 +115,7 @@ export async function checkResolutionSources(input) {
   const {
     draftContent = '',
     references = '',
+    sourceOfTruth = '',
     claims = [],
     fetchImpl,
     timeoutMs,
@@ -126,7 +130,13 @@ export async function checkResolutionSources(input) {
     }
   };
 
-  // 1. source-category claims — highest signal, claim-pinned
+  // 1. source-of-truth — highest signal because the user explicitly marked
+  // it as the definitive settlement source.
+  for (const url of extractUrls(sourceOfTruth)) {
+    addIfNew(url, 'source_of_truth');
+  }
+
+  // 2. source-category claims — high signal, claim-pinned
   for (const claim of claims || []) {
     if (!claim || claim.category !== 'source') continue;
     for (const url of extractUrls(claim.text || '')) {
@@ -134,18 +144,18 @@ export async function checkResolutionSources(input) {
     }
   }
 
-  // 2. resolution / sources section of the draft itself
+  // 3. resolution / sources section of the draft itself
   const resolutionSection = extractResolutionSection(draftContent);
   for (const url of extractUrls(resolutionSection)) {
     addIfNew(url, 'resolution_section');
   }
 
-  // 3. user-provided references block
+  // 4. user-provided references block
   for (const url of extractUrls(references)) {
     addIfNew(url, 'references');
   }
 
-  // 4. any remaining URLs in the draft body (catches inline citations
+  // 5. any remaining URLs in the draft body (catches inline citations
   //    that didn't land in a section header and didn't come through as a
   //    source claim)
   for (const url of extractUrls(draftContent)) {
@@ -164,7 +174,7 @@ export async function checkResolutionSources(input) {
       logEntry: {
         level: 'warn',
         message:
-          'Source accessibility: no machine-readable URLs found in the draft, its resolution section, references, or source claims.',
+          'Source accessibility: no machine-readable URLs found in the source of truth, draft, resolution section, references, or source claims.',
       },
     };
   }

@@ -32,6 +32,7 @@ DRAFT FLAGS
   --start            Start date, ISO 8601 (required)
   --end              End date, ISO 8601 (required)
   --references       Resolution source URLs (comma-separated)
+  --source-of-truth  Definitive resolution source URL
   --drafter          OpenRouter model ID for drafting
   --reviewers        Comma-separated reviewer model IDs
   --aggregation      majority | unanimity | judge
@@ -86,6 +87,7 @@ function parseCliArgs() {
       start: { type: 'string' },
       end: { type: 'string' },
       references: { type: 'string' },
+      'source-of-truth': { type: 'string' },
       drafter: { type: 'string' },
       reviewers: { type: 'string' },
       aggregation: { type: 'string' },
@@ -183,6 +185,7 @@ async function cmdDraft(values, stdinConfig) {
   const question = values.question || baseInput.question;
   const startDate = values.start || baseInput.startDate;
   const endDate = values.end || baseInput.endDate;
+  const sourceOfTruth = values['source-of-truth'] || baseInput.sourceOfTruth || '';
 
   if (!question || !startDate || !endDate) {
     process.stderr.write('Error: --question (-q), --start, and --end are required.\n\n');
@@ -212,6 +215,7 @@ async function cmdDraft(values, stdinConfig) {
       startDate,
       endDate,
       references: references || [],
+      sourceOfTruth,
     },
     models: {
       drafter: values.drafter || baseModels.drafter,

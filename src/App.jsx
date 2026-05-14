@@ -416,6 +416,7 @@ function App() {
     startDate,
     endDate,
     references,
+    sourceOfTruth,
     proposedOutcomes,
     selectedModel,
     reviewModels,
@@ -665,6 +666,7 @@ function App() {
 
     const eResult = await gatherEvidence({
       references,
+      sourceOfTruth,
       claims: result.claims,
       verifications: vResult.verifications,
     });
@@ -735,12 +737,12 @@ function App() {
     // (if any) is discarded.
     dispatch({
       type: 'RUN_START',
-      input: { question, startDate: startDateUTC, endDate: endDateUTC, references, proposedOutcomes },
+      input: { question, startDate: startDateUTC, endDate: endDateUTC, references, sourceOfTruth, proposedOutcomes },
     });
     try {
       const result = await queryModel(selectedModel, [
         { role: 'system', content: getSystemPrompt('drafter') },
-        { role: 'user', content: buildDraftPrompt(question, startDateUTC, endDateUTC, references, proposedOutcomes) },
+        { role: 'user', content: buildDraftPrompt(question, startDateUTC, endDateUTC, references, proposedOutcomes, sourceOfTruth) },
       ], { maxTokens: DRAFT_MAX_TOKENS });
       dispatch({ type: 'DRAFT_SUCCESS', content: result.content });
       recordCost('draft', result);
@@ -797,6 +799,7 @@ function App() {
         draftContent,
         RIGOR_RUBRIC,
         proposedOutcomes,
+        sourceOfTruth,
       );
 
       // Per-reviewer cost + log accounting.
@@ -920,7 +923,7 @@ function App() {
       );
       const result = await queryModel(selectedModel, [
         { role: 'system', content: getSystemPrompt('drafter') },
-        { role: 'user', content: buildUpdatePrompt(displayedDraftContent, reviewText, humanReviewInput, focusBlock, proposedOutcomes, references) },
+        { role: 'user', content: buildUpdatePrompt(displayedDraftContent, reviewText, humanReviewInput, focusBlock, proposedOutcomes, references, sourceOfTruth) },
       ], { maxTokens: DRAFT_MAX_TOKENS });
       updatedDraft = result.content;
       recordCost('update', result);
@@ -984,6 +987,7 @@ function App() {
       const checkResult = await checkResolutionSources({
         draftContent: updatedDraft,
         references,
+        sourceOfTruth,
         claims: updatedClaimPipeline.claims || [],
       });
       dispatch({
@@ -1127,6 +1131,7 @@ function App() {
               normalizeUtcDateTime(startDate, '00:00:00'),
               normalizeUtcDateTime(endDate, '23:59:59'),
               proposedOutcomes,
+              sourceOfTruth,
             ),
           },
         ],
@@ -1193,6 +1198,7 @@ function App() {
         startDate: normalizeUtcDateTime(startDate, '00:00:00'),
         endDate: normalizeUtcDateTime(endDate, '23:59:59'),
         references,
+        sourceOfTruth,
         proposedOutcomes,
       },
     });
@@ -1442,6 +1448,21 @@ function App() {
                     onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'references', value: e.target.value })}
                     placeholder={t('form.referencesPlaceholder')}
                     className="input textarea"
+                    disabled={loading === 'draft'}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="sourceOfTruth">
+                    {t('form.sourceOfTruth')} <span className="label-hint">{t('form.optional')}</span>
+                  </label>
+                  <input
+                    id="sourceOfTruth"
+                    type="text"
+                    value={sourceOfTruth}
+                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'sourceOfTruth', value: e.target.value })}
+                    placeholder={t('form.sourceOfTruthPlaceholder')}
+                    className="input"
                     disabled={loading === 'draft'}
                   />
                 </div>
@@ -2245,6 +2266,7 @@ function App() {
                     const gateLevel = meta.level;
                     const levelLabel = isChecking ? null : meta.label;
                     const originLabel = (origin) => {
+                      if (origin === 'source_of_truth') return t('origin.sourceOfTruth');
                       if (origin === 'source_claim') return t('origin.sourceClaim');
                       if (origin === 'resolution_section') return t('origin.resolutionSection');
                       if (origin === 'references') return t('origin.references');
@@ -2941,6 +2963,10 @@ function App() {
                     <div className="run-trace__kv">
                       <span>{t('trace.question')}</span>
                       <span>{currentRun.input?.question || t('common.none')}</span>
+                    </div>
+                    <div className="run-trace__kv">
+                      <span>{t('trace.sourceOfTruth')}</span>
+                      <span>{currentRun.input?.sourceOfTruth || t('common.none')}</span>
                     </div>
                   </div>
 

@@ -33,8 +33,8 @@ describe("buildResolutionDescriptionMarkdown", () => {
       "Example FC must win at National Stadium by the UTC timestamp.",
       "",
       "## Resolution Source",
-      "- Primary source — Match Centre: [match page](https://example.com/match-centre?match=42); set the match filter to final.",
-      "- Secondary source — League Stats: [league page](https://stats.example.org/cup-final); used if the primary is unavailable.",
+      "- Primary source: [match page](https://example.com/match-centre?match=42); set the match filter to final.",
+      "- Secondary source: [league page](https://stats.example.org/cup-final); used if the primary is unavailable.",
       "",
       "## Additional Information",
       "Exclude friendlies. Resolution window: resolved within 24 hours after the index timestamp.",
@@ -60,19 +60,22 @@ describe("buildResolutionDescriptionMarkdown", () => {
     expect(markdown).toContain("2026-12-14T14:00:00Z");
 
     expect(markdown).toContain("## Criteria");
-    expect(markdown).toContain(
-      "Eligible read window: 2026-12-01T00:00:00Z through 2026-12-14T14:00:00Z UTC",
+    // Criteria is bulleted full-sentences, including a final
+    // eligible-read-window bullet.
+    expect(markdown).toMatch(
+      /- The eligible read window runs from 2026-12-01T00:00:00Z through 2026-12-14T14:00:00Z UTC\./,
     );
+    // Each rule from fullResolutionRules renders as its own bullet.
+    expect(markdown).toMatch(/- Use the linked source for the final score\./);
+    expect(markdown).toMatch(/- Cross-check at the linked source\./);
+    expect(markdown).toMatch(/- Ignore friendlies\./);
 
     expect(markdown).toContain("## Resolution Source");
-    expect(markdown).toContain("- Primary source — example.com");
-    expect(markdown).toContain(
-      "[example.com](https://example.com/match-centre?match=42)",
-    );
-    expect(markdown).toContain("- Secondary source — mirror.example.org");
-    expect(markdown).toContain(
-      "[mirror.example.org](https://mirror.example.org/scores)",
-    );
+    expect(markdown).toContain("- Primary source: [example.com](https://example.com/match-centre?match=42)");
+    expect(markdown).toContain("- Secondary source: [mirror.example.org](https://mirror.example.org/scores)");
+    // No "— host" middle bit on the Source line; host appears only as the link label.
+    expect(markdown).not.toMatch(/- Primary source — /);
+    expect(markdown).not.toMatch(/- Secondary source — /);
     expect(markdown).not.toContain("Use https://");
 
     expect(markdown).toContain("## Additional Information");
@@ -99,8 +102,8 @@ describe("buildResolutionDescriptionMarkdown", () => {
         "1. Use https://example.com/match-centre?match=42 for the final score.",
     });
 
-    expect(markdown).toContain("- Primary source — example.com");
-    // No placeholder noise — the line should simply not appear.
+    expect(markdown).toContain("- Primary source: [example.com](https://example.com/match-centre?match=42)");
+    // No placeholder noise — the secondary line should simply not appear.
     expect(markdown).not.toMatch(/Secondary source/);
     expect(markdown).not.toMatch(/substantively different public-read fallback/);
   });

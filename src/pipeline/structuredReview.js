@@ -54,7 +54,7 @@ import { tryParseJsonObject, createUsageAggregator } from './llmJson.js';
  *                                                proposes" (default).
  * @returns {Promise<StructuredReviewResult>}
  */
-export async function runStructuredReview(model, draftContent, rubric, proposedOutcomes = []) {
+export async function runStructuredReview(model, draftContent, rubric, proposedOutcomes = [], sourceOfTruth = '') {
   const rubricIds = new Set(rubric.map((r) => r.id));
   const { aggregate, accumulate } = createUsageAggregator();
 
@@ -65,7 +65,7 @@ export async function runStructuredReview(model, draftContent, rubric, proposedO
       model.id,
       [
         { role: 'system', content: getSystemPrompt('structuredReviewer') },
-        { role: 'user', content: buildStructuredReviewPrompt(draftContent, rubric, proposedOutcomes) },
+        { role: 'user', content: buildStructuredReviewPrompt(draftContent, rubric, proposedOutcomes, sourceOfTruth) },
       ],
       { temperature: 0.4, maxTokens: 3000 }
     );
@@ -99,7 +99,7 @@ export async function runStructuredReview(model, draftContent, rubric, proposedO
           { role: 'system', content: getSystemPrompt('structuredReviewer') },
           {
             role: 'user',
-            content: buildStrictStructuredReviewRetryPrompt(draftContent, rubric, proposedOutcomes),
+            content: buildStrictStructuredReviewRetryPrompt(draftContent, rubric, proposedOutcomes, sourceOfTruth),
           },
         ],
         { temperature: 0.2, maxTokens: 3000 }
@@ -202,9 +202,9 @@ export async function runStructuredReview(model, draftContent, rubric, proposedO
  *                                       empty array = drafter proposes.
  * @returns {Promise<StructuredReviewResult[]>}
  */
-export async function runStructuredReviewsParallel(models, draftContent, rubric, proposedOutcomes = []) {
+export async function runStructuredReviewsParallel(models, draftContent, rubric, proposedOutcomes = [], sourceOfTruth = '') {
   const settled = await Promise.allSettled(
-    models.map((m) => runStructuredReview(m, draftContent, rubric, proposedOutcomes))
+    models.map((m) => runStructuredReview(m, draftContent, rubric, proposedOutcomes, sourceOfTruth))
   );
   return settled.map((s, i) => {
     if (s.status === 'fulfilled') return s.value;

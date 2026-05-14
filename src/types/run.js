@@ -295,7 +295,7 @@ export const LogEntrySchema = z.object({
 
 export const SourceCheckEntrySchema = z.object({
   url: z.string(),
-  origin: z.enum(['resolution_section', 'source_claim', 'references', 'draft_body']),
+  origin: z.enum(['source_of_truth', 'resolution_section', 'source_claim', 'references', 'draft_body']),
   claimId: z.string().nullable(),
   accessible: z.boolean(),
 });
@@ -387,6 +387,9 @@ export const RunSchema = z.object({
     startDate: z.string(),
     endDate: z.string(),
     references: z.string(),
+    // Optional user-provided definitive resolution source. Threaded into
+    // every prompt as an UNTRUSTED block. Older exports default to "".
+    sourceOfTruth: z.string().optional().default(''),
     // User-specified outcome set. Empty array means "let the drafter
     // propose"; non-empty means a hard restriction on the outcome names
     // and ordering. Optional on the schema so older exports validate.
@@ -444,7 +447,7 @@ export function createEmptyCost() {
 
 /**
  * Construct a fresh Run from the drafting inputs.
- * @param {{question:string, startDate:string, endDate:string, references:string, proposedOutcomes?:string[], numberOfOutcomes?:string, rigor?:'human'}} input
+ * @param {{question:string, startDate:string, endDate:string, references:string, sourceOfTruth?:string, proposedOutcomes?:string[], numberOfOutcomes?:string, rigor?:'human'}} input
  * @returns {Run}
  */
 export function createRun(input) {
@@ -456,6 +459,7 @@ export function createRun(input) {
       startDate: input?.startDate || '',
       endDate: input?.endDate || '',
       references: input?.references || '',
+      sourceOfTruth: input?.sourceOfTruth || '',
       proposedOutcomes: Array.isArray(input?.proposedOutcomes)
         ? input.proposedOutcomes.filter((s) => typeof s === 'string' && s.trim().length > 0)
         : [],

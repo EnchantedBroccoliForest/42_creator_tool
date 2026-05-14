@@ -86,20 +86,36 @@ function buildSummarySentence(finalJson) {
 }
 
 function buildCriteria(finalJson) {
-  const criteria = withoutBareUrls(
-    firstSentence(finalJson?.outcomes?.[0]?.resolutionCriteria)
-      || firstSentence(finalJson?.fullResolutionRules),
-  );
   const start = oneLine(finalJson?.marketStartTimeUTC);
   const end = oneLine(finalJson?.marketEndTimeUTC);
-  const window = start && end
-    ? `Eligible read window: ${start} through ${end} UTC.`
-    : 'Eligible read window: per the UTC timestamps in the resolution rules.';
+  const bullets = [];
 
-  if (criteria) {
-    return `${criteria} ${window}`;
+  // One bullet per resolution rule the model emitted. Each is rewritten as
+  // a complete sentence and URLs are stripped (they live in Resolution
+  // Source) so the Criteria section reads cleanly.
+  const ruleItems = parseListItems(finalJson?.fullResolutionRules);
+  for (const item of ruleItems) {
+    const sentence = asSentence(withoutBareUrls(item));
+    if (sentence) bullets.push(`- ${sentence}`);
   }
-  return `Verify the named outcome against the official rules listed in the draft. ${window}`;
+
+  // Fall back to the first outcome's resolutionCriteria when no
+  // fullResolutionRules list is available.
+  if (bullets.length === 0) {
+    const fallback = asSentence(
+      withoutBareUrls(firstSentence(finalJson?.outcomes?.[0]?.resolutionCriteria)),
+    );
+    bullets.push(`- ${fallback || 'The named outcome is verified against the official rules listed in the draft.'}`);
+  }
+
+  // Always append the eligible-read-window bullet so the timing rule is
+  // explicit even if the model omitted it from fullResolutionRules.
+  const windowSentence = start && end
+    ? `The eligible read window runs from ${start} through ${end} UTC.`
+    : 'The eligible read window is defined by the UTC timestamps in the resolution rules.';
+  bullets.push(`- ${windowSentence}`);
+
+  return bullets.join('\n');
 }
 
 function buildResolutionSource(finalJson) {
@@ -139,12 +155,12 @@ function buildResolutionSource(finalJson) {
 
   const primaryUrl = urls[0];
   const primaryName = explicitName || hostFromUrl(primaryUrl);
-  const lines = [`- Primary source — ${primaryName}: [${primaryName}](${primaryUrl}); ${paramsLine}.`];
+  const lines = [`- Primary source: [${primaryName}](${primaryUrl}); ${paramsLine}.`];
 
   if (urls.length >= 2) {
     const secondaryUrl = urls[1];
     const secondaryName = hostFromUrl(secondaryUrl);
-    lines.push(`- Secondary source — ${secondaryName}: [${secondaryName}](${secondaryUrl}); used if the primary is unavailable or returns ambiguous data.`);
+    lines.push(`- Secondary source: [${secondaryName}](${secondaryUrl}); used if the primary is unavailable or returns ambiguous data.`);
   }
   // If no secondary URL was harvested, omit the secondary line entirely —
   // a placeholder ("name a substantively different fallback…") is noise on
