@@ -94,6 +94,7 @@ const EN = {
   "common.copy": "Copy",
   "common.copied": "Copied!",
   "common.copyAll": "Copy All",
+  "common.copyMarkdown": "Copy Markdown",
   "common.copyCompact": "Copy String-Compacted Markdown",
   "common.dismiss": "Dismiss",
   "common.justNow": "just now",
@@ -262,6 +263,10 @@ const EN = {
   "final.dashboardOutputHeading": "Resolution description for ancillary data",
   "final.dashboardOutputHint":
     "This is the artifact the market submits. Paste the Markdown into the description field on 42.space; use the String-Compacted Markdown copy for on-chain ancillary data.",
+  "final.copyMarkdownTitle":
+    "Copy raw Markdown (with real line breaks) — paste this into a Markdown preview, a docs editor, or anywhere you want the rendered description to read like normal text.",
+  "final.copyCompactTitle":
+    "Copy the JSON-escaped single-line form (\\n / \\\" encoded) — paste this directly into the on-chain ancillary-data JSON payload.",
 
   // Run trace
   "trace.heading": "Run trace",
@@ -453,6 +458,7 @@ const ZH = {
   "common.copy": "复制",
   "common.copied": "已复制!",
   "common.copyAll": "全部复制",
+  "common.copyMarkdown": "复制 Markdown",
   "common.copyCompact": "复制压缩字符串 Markdown",
   "common.dismiss": "关闭",
   "common.justNow": "刚刚",
@@ -615,6 +621,10 @@ const ZH = {
   "final.dashboardOutputHeading": "提交到 42.space 面板的解析描述",
   "final.dashboardOutputHint":
     "这是市场实际提交的内容。将 Markdown 粘贴到 42.space 的描述字段;链上 ancillary data 请使用「复制压缩字符串 Markdown」。",
+  "final.copyMarkdownTitle":
+    "复制原始 Markdown(包含真实换行)— 适合粘贴到 Markdown 预览、文档编辑器等需要正常渲染的地方。",
+  "final.copyCompactTitle":
+    "复制 JSON 转义后的单行形式(\\n / \\\" 已编码)— 直接粘贴到链上 ancillary data 的 JSON 负载。",
   "final.moreInFullSpec": "完整规范中还有 {n} 条",
 
   // Run trace

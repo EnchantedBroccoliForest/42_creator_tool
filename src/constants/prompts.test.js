@@ -211,12 +211,13 @@ describe('prompt builders', () => {
     expect(summaryIdx).toBeLessThan(criteriaIdx);
     expect(criteriaIdx).toBeLessThan(sourceIdx);
     expect(sourceIdx).toBeLessThan(additionalIdx);
-    // Primary source is required; secondary is optional and must be omitted
-    // entirely when no fallback is available (no placeholder noise).
-    expect(out).toMatch(/name a PRIMARY source/);
-    expect(out).toMatch(/OMIT the secondary line entirely/);
+    // Resolution Source is a bulleted list; primary is required, secondary
+    // is optional and must be omitted entirely when no fallback exists.
+    expect(out).toMatch(/PRIMARY source/);
+    expect(out).toMatch(/SECONDARY source/);
+    expect(out).toMatch(/emit ONLY the primary bullet/);
     expect(out).toMatch(/no api_key query parameters/);
-    // Additional Information must be a bulleted list of succinct sentences.
+    // Additional Information must also be a bulleted list of succinct sentences.
     expect(out).toMatch(/Markdown bulleted list/);
     expect(out).toMatch(/EACH BULLET MUST BE A SINGLE SUCCINCT SENTENCE/);
   });

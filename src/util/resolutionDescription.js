@@ -134,17 +134,17 @@ function buildResolutionSource(finalJson) {
   const paramsLine = uiParams || 'use the page state, filters, and timestamp specified in the resolution rules';
 
   if (urls.length === 0) {
-    return `Primary source: add the external URL before dashboard submission; ${paramsLine}.`;
+    return `- Primary source: add the external URL before dashboard submission; ${paramsLine}.`;
   }
 
   const primaryUrl = urls[0];
   const primaryName = explicitName || hostFromUrl(primaryUrl);
-  const lines = [`Primary source — ${primaryName}: [${primaryName}](${primaryUrl}); ${paramsLine}.`];
+  const lines = [`- Primary source — ${primaryName}: [${primaryName}](${primaryUrl}); ${paramsLine}.`];
 
   if (urls.length >= 2) {
     const secondaryUrl = urls[1];
     const secondaryName = hostFromUrl(secondaryUrl);
-    lines.push(`Secondary source — ${secondaryName}: [${secondaryName}](${secondaryUrl}); used if the primary is unavailable or returns ambiguous data.`);
+    lines.push(`- Secondary source — ${secondaryName}: [${secondaryName}](${secondaryUrl}); used if the primary is unavailable or returns ambiguous data.`);
   }
   // If no secondary URL was harvested, omit the secondary line entirely —
   // a placeholder ("name a substantively different fallback…") is noise on

@@ -2601,12 +2601,14 @@ function App() {
                               <button
                                 className={`copy-btn ${copiedId === 'description-markdown' ? 'copy-btn--copied' : ''}`}
                                 onClick={() => handleCopy(resolutionDescriptionMarkdown, 'description-markdown')}
+                                title={t('final.copyMarkdownTitle')}
                               >
-                                {copiedId === 'description-markdown' ? t('common.copied') : t('common.copy')}
+                                {copiedId === 'description-markdown' ? t('common.copied') : t('common.copyMarkdown')}
                               </button>
                               <button
                                 className={`copy-btn copy-btn--primary ${copiedId === 'description-compact' ? 'copy-btn--copied' : ''}`}
                                 onClick={() => handleCopy(resolutionDescriptionCompact, 'description-compact')}
+                                title={t('final.copyCompactTitle')}
                               >
                                 {copiedId === 'description-compact' ? t('common.copied') : t('common.copyCompact')}
                               </button>
@@ -2749,12 +2751,14 @@ function App() {
                               <button
                                 className={`copy-btn ${copiedId === 'description-markdown' ? 'copy-btn--copied' : ''}`}
                                 onClick={() => handleCopy(resolutionDescriptionMarkdown, 'description-markdown')}
+                                title={t('final.copyMarkdownTitle')}
                               >
-                                {copiedId === 'description-markdown' ? t('common.copied') : t('common.copy')}
+                                {copiedId === 'description-markdown' ? t('common.copied') : t('common.copyMarkdown')}
                               </button>
                               <button
                                 className={`copy-btn ${copiedId === 'description-compact' ? 'copy-btn--copied' : ''}`}
                                 onClick={() => handleCopy(resolutionDescriptionCompact, 'description-compact')}
+                                title={t('final.copyCompactTitle')}
                               >
                                 {copiedId === 'description-compact' ? t('common.copied') : t('common.copyCompact')}
                               </button>

@@ -33,8 +33,8 @@ describe("buildResolutionDescriptionMarkdown", () => {
       "Example FC must win at National Stadium by the UTC timestamp.",
       "",
       "## Resolution Source",
-      "Primary source — Match Centre: [match page](https://example.com/match-centre?match=42); set the match filter to final.",
-      "Secondary source — League Stats: [league page](https://stats.example.org/cup-final); used if the primary is unavailable.",
+      "- Primary source — Match Centre: [match page](https://example.com/match-centre?match=42); set the match filter to final.",
+      "- Secondary source — League Stats: [league page](https://stats.example.org/cup-final); used if the primary is unavailable.",
       "",
       "## Additional Information",
       "Exclude friendlies. Resolution window: resolved within 24 hours after the index timestamp.",
@@ -65,11 +65,11 @@ describe("buildResolutionDescriptionMarkdown", () => {
     );
 
     expect(markdown).toContain("## Resolution Source");
-    expect(markdown).toContain("Primary source — example.com");
+    expect(markdown).toContain("- Primary source — example.com");
     expect(markdown).toContain(
       "[example.com](https://example.com/match-centre?match=42)",
     );
-    expect(markdown).toContain("Secondary source — mirror.example.org");
+    expect(markdown).toContain("- Secondary source — mirror.example.org");
     expect(markdown).toContain(
       "[mirror.example.org](https://mirror.example.org/scores)",
     );
@@ -99,7 +99,7 @@ describe("buildResolutionDescriptionMarkdown", () => {
         "1. Use https://example.com/match-centre?match=42 for the final score.",
     });
 
-    expect(markdown).toContain("Primary source — example.com");
+    expect(markdown).toContain("- Primary source — example.com");
     // No placeholder noise — the line should simply not appear.
     expect(markdown).not.toMatch(/Secondary source/);
     expect(markdown).not.toMatch(/substantively different public-read fallback/);
@@ -113,7 +113,7 @@ describe("buildResolutionDescriptionMarkdown", () => {
     });
 
     expect(markdown).toContain(
-      "Primary source: add the external URL before dashboard submission",
+      "- Primary source: add the external URL before dashboard submission",
     );
     expect(markdown).not.toMatch(/Secondary source/);
     expect(markdown).not.toMatch(/substantively different public-read fallback/);
