@@ -236,7 +236,7 @@ async function runReviewStage(run, models, options, cost, callbacks) {
     models.reviewers,
     run.drafts[run.drafts.length - 1].content,
     RIGOR_RUBRIC,
-    run.input?.numberOfOutcomes || '',
+    run.input?.proposedOutcomes || [],
     run.input?.sourceOfTruth || '',
   );
   for (const r of structured) {
@@ -294,7 +294,7 @@ async function runUpdateStage(run, models, options, fetchImpl, cost, callbacks, 
     models.drafter,
     [
       { role: 'system', content: getSystemPrompt('drafter') },
-      { role: 'user', content: buildUpdatePrompt(latestDraft, reviewText, humanFeedback, focusBlock, run.input?.numberOfOutcomes || '', referencesStr, run.input?.sourceOfTruth || '') },
+      { role: 'user', content: buildUpdatePrompt(latestDraft, reviewText, humanFeedback, focusBlock, run.input?.proposedOutcomes || [], referencesStr, run.input?.sourceOfTruth || '') },
     ],
     { maxTokens: 8000 },
   );
@@ -389,7 +389,7 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
     models.drafter,
     [
       { role: 'system', content: getSystemPrompt('finalizer') },
-      { role: 'user', content: buildFinalizePrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.numberOfOutcomes || '', run.input?.sourceOfTruth || '') },
+      { role: 'user', content: buildFinalizePrompt(latestDraft, run.input.startDate, run.input.endDate, run.input?.proposedOutcomes || [], run.input?.sourceOfTruth || '') },
     ],
     { temperature: 0.3, maxTokens: DRAFT_MAX_TOKENS },
   );
@@ -538,7 +538,7 @@ async function _orchestrateInner(config, signal) {
     endDate: input?.endDate || '',
     references: referencesStr,
     sourceOfTruth: input?.sourceOfTruth || '',
-    numberOfOutcomes: input?.numberOfOutcomes || '',
+    proposedOutcomes: Array.isArray(input?.proposedOutcomes) ? input.proposedOutcomes : [],
   });
 
   let riskLevel = 'unknown';
@@ -574,7 +574,7 @@ async function _orchestrateInner(config, signal) {
             input?.startDate || '',
             input?.endDate || '',
             referencesStr,
-            input?.numberOfOutcomes || '',
+            input?.proposedOutcomes || [],
             input?.sourceOfTruth || '',
           ),
         },

@@ -18,6 +18,7 @@ import {
   buildEarlyResolutionPrompt,
   buildIdeatePrompt,
   buildJudgeAggregatorPrompt,
+  buildOutcomeSetConstraint,
 } from './prompts.js';
 import { RIGOR_RUBRIC } from './rubric.js';
 
@@ -30,8 +31,8 @@ const SAMPLE = {
   startDate: '2026-01-01',
   endDate: '2026-12-31',
   references: 'https://example.com/source',
+  proposedOutcomes: ['Taylor Swift', 'Drake', 'Sabrina Carpenter', 'Other / None'],
   sourceOfTruth: 'https://truth.example.com/feed',
-  numberOfOutcomes: '4',
   draftContent: 'DRAFT_PLACEHOLDER',
   reviews: [{ modelName: 'rev-1', content: 'critique-1' }, { modelName: 'rev-2', content: 'critique-2' }],
   reviewContent: 'review-text',
@@ -85,6 +86,12 @@ describe('SYSTEM_PROMPTS', () => {
     expect(PROTOCOL_CONTEXT).toContain('NO STRANDED COLLATERAL');
     expect(PROTOCOL_CONTEXT).toMatch(/single unambiguous hard UTC timestamp/);
   });
+
+  it('PROTOCOL_CONTEXT forbids API-key / auth-gated resolution sources', () => {
+    expect(PROTOCOL_CONTEXT).toContain('PUBLIC-READ ONLY');
+    expect(PROTOCOL_CONTEXT).toMatch(/api_key/);
+    expect(PROTOCOL_CONTEXT).toMatch(/Bearer token/);
+  });
 });
 
 describe('getSystemPrompt(role)', () => {
@@ -100,11 +107,38 @@ describe('prompt builders', () => {
       SAMPLE.startDate,
       SAMPLE.endDate,
       SAMPLE.references,
-      SAMPLE.numberOfOutcomes,
+      SAMPLE.proposedOutcomes,
     );
     expect(out).toContain('KEEP THE OUTPUT TIGHT');
     expect(out).toContain('Potential sources for resolution');
-    expect(out).toContain('EXACTLY 4 Outcome Tokens');
+    expect(out).toContain('HARD RESTRICTION — OUTCOME SET');
+    expect(out).toContain('"Taylor Swift"');
+    expect(out).toContain('"Drake"');
+    expect(out).toContain('"Other / None"');
+  });
+
+  it('buildDraftPrompt omits the outcome-set block when none are specified', () => {
+    const out = buildDraftPrompt(
+      SAMPLE.question,
+      SAMPLE.startDate,
+      SAMPLE.endDate,
+      SAMPLE.references,
+      [],
+    );
+    expect(out).not.toContain('HARD RESTRICTION — OUTCOME SET');
+    expect(out).not.toContain('USER-SPECIFIED OUTCOMES');
+  });
+
+  it('buildOutcomeSetConstraint trims/skips blanks and returns "" for none', () => {
+    expect(buildOutcomeSetConstraint([])).toBe('');
+    expect(buildOutcomeSetConstraint(null)).toBe('');
+    expect(buildOutcomeSetConstraint(undefined)).toBe('');
+    expect(buildOutcomeSetConstraint(['', '   ', null])).toBe('');
+
+    const block = buildOutcomeSetConstraint(['Yes', '  ', 'No']);
+    expect(block).toContain('1. "Yes"');
+    expect(block).toContain('2. "No"');
+    expect(block).not.toContain('3.');
   });
 
   it('threads source of truth into draft, review, update, and finalize prompts as authoritative only after validation', () => {
@@ -154,17 +188,21 @@ describe('prompt builders', () => {
   });
 
   it('buildDeliberationPrompt consolidates reviewer feedback briefly', () => {
-    const out = buildDeliberationPrompt(SAMPLE.draftContent, SAMPLE.reviews, SAMPLE.numberOfOutcomes);
+    const out = buildDeliberationPrompt(SAMPLE.draftContent, SAMPLE.reviews, SAMPLE.proposedOutcomes);
     expect(out).toContain('Produce a short consolidated read');
     expect(out).toContain('Aim for 150 words or less');
     expect(out).toContain('critique-1');
   });
 
   it('buildStructuredReviewPrompt contains rubric ids and schema keys', () => {
-    const out = buildStructuredReviewPrompt(SAMPLE.draftContent, RIGOR_RUBRIC, SAMPLE.numberOfOutcomes);
+    const out = buildStructuredReviewPrompt(SAMPLE.draftContent, RIGOR_RUBRIC, SAMPLE.proposedOutcomes);
     for (const item of RIGOR_RUBRIC) {
       expect(out).toContain(item.id);
     }
+    // The objective_source rubric rationale must carry the public-read gate
+    // so reviewers actually vote against API-key-gated source URLs.
+    expect(out).toMatch(/no API key, login, or paid subscription/);
+    expect(out).toMatch(/are not public oracles and are forbidden/);
     for (const key of [
       'reviewProse',
       'rubricVotes',
@@ -182,8 +220,8 @@ describe('prompt builders', () => {
   });
 
   it('buildStrictStructuredReviewRetryPrompt embeds the base prompt', () => {
-    const base = buildStructuredReviewPrompt(SAMPLE.draftContent, RIGOR_RUBRIC, SAMPLE.numberOfOutcomes);
-    const retry = buildStrictStructuredReviewRetryPrompt(SAMPLE.draftContent, RIGOR_RUBRIC, SAMPLE.numberOfOutcomes);
+    const base = buildStructuredReviewPrompt(SAMPLE.draftContent, RIGOR_RUBRIC, SAMPLE.proposedOutcomes);
+    const retry = buildStrictStructuredReviewRetryPrompt(SAMPLE.draftContent, RIGOR_RUBRIC, SAMPLE.proposedOutcomes);
     expect(retry).toContain(base);
   });
 
@@ -193,7 +231,7 @@ describe('prompt builders', () => {
       SAMPLE.reviewContent,
       SAMPLE.humanReviewInput,
       SAMPLE.focusBlock,
-      SAMPLE.numberOfOutcomes,
+      SAMPLE.proposedOutcomes,
       SAMPLE.references,
     );
     expect(out).toMatch(/protocol rule/i);
@@ -201,12 +239,32 @@ describe('prompt builders', () => {
     expect(out).toContain('HUMAN REVIEWER FEEDBACK');
   });
 
-  it('buildFinalizePrompt uses the trader-title budget and description template', () => {
-    const out = buildFinalizePrompt(SAMPLE.draftContent, SAMPLE.startDate, SAMPLE.endDate, SAMPLE.numberOfOutcomes);
+  it('buildFinalizePrompt uses the trader-title budget and four-section description template', () => {
+    const out = buildFinalizePrompt(SAMPLE.draftContent, SAMPLE.startDate, SAMPLE.endDate, SAMPLE.proposedOutcomes);
     expect(out).toContain('refinedQuestion: trader-facing market title, max 70 chars');
     expect(out).toContain('CONCISENESS RULES');
-    expect(out).toContain('starting with one standalone summary sentence');
-    expect(out).toMatch(/Name a secondary fallback source/);
+    // Four fixed H2 sections, in order.
+    const summaryIdx = out.indexOf('## Summary');
+    const criteriaIdx = out.indexOf('## Criteria');
+    const sourceIdx = out.indexOf('## Resolution Source');
+    const additionalIdx = out.indexOf('## Additional Information');
+    expect(summaryIdx).toBeGreaterThanOrEqual(0);
+    expect(summaryIdx).toBeLessThan(criteriaIdx);
+    expect(criteriaIdx).toBeLessThan(sourceIdx);
+    expect(sourceIdx).toBeLessThan(additionalIdx);
+    // Resolution Source is a bulleted list whose bullets are introduced by
+    // the literal "Primary source:" / "Secondary source:" leaders, and
+    // secondary is optional (must be omitted entirely when no fallback exists).
+    expect(out).toMatch(/begins literally with "Primary source:"/);
+    expect(out).toMatch(/begins literally with "Secondary source:"/);
+    expect(out).toMatch(/emit ONLY the primary bullet/);
+    expect(out).toMatch(/no api_key query parameters/);
+    // Criteria and Additional Information must both be bulleted lists; the
+    // Criteria bullets are full proper sentences, the Additional Information
+    // bullets are succinct sentences.
+    expect(out).toMatch(/Markdown bulleted list/);
+    expect(out).toMatch(/EACH BULLET MUST BE A COMPLETE, PROPERLY STRUCTURED SENTENCE/);
+    expect(out).toMatch(/EACH BULLET MUST BE A SINGLE SUCCINCT SENTENCE/);
   });
 
   it('buildEarlyResolutionPrompt asks for a compact risk rating', () => {

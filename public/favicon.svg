@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="42 creator tool">
+  <title>42</title>
+  <rect width="32" height="32" rx="7" ry="7" fill="#1a1408"/>
+  <g fill="#f5f0e8" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-weight="800" font-size="18" text-anchor="middle">
+    <text x="16" y="22.2" letter-spacing="-0.6">42</text>
+  </g>
+  <circle cx="25" cy="7" r="2.6" fill="#a8442e"/>
+  <rect x="6" y="26" width="20" height="1.4" rx="0.7" fill="#a8442e" opacity="0.85"/>
+</svg>

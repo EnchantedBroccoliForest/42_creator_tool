@@ -37,7 +37,10 @@ import {
   validateDatePair,
   validateDraftInputs,
 } from './util/draftInput';
-import { buildResolutionDescriptionMarkdown } from './util/resolutionDescription';
+import {
+  buildResolutionDescriptionMarkdown,
+  compactResolutionDescriptionMarkdown,
+} from './util/resolutionDescription';
 import { buildMarketCard, formatMarketCardCopy } from './util/marketCard';
 import { formatFullSpecCopy } from './util/finalCopy';
 import { validateFinalMarketJson } from './util/finalMarketJson';
@@ -402,6 +405,7 @@ function App() {
   const panel2Ref = useRef(null);
   const panel3Ref = useRef(null);
   const draftOutputRef = useRef(null);
+  const finalOutputRef = useRef(null);
   // Mirror `currentRun` in a ref so async handlers can read the latest
   // criticism and claim state between reducer dispatches.
   const currentRunRef = useRef(null);
@@ -413,7 +417,7 @@ function App() {
     endDate,
     references,
     sourceOfTruth,
-    numberOfOutcomes,
+    proposedOutcomes,
     selectedModel,
     reviewModels,
     aggregationProtocol,
@@ -455,6 +459,9 @@ function App() {
 
   const resolutionDescriptionMarkdown = finalContent && !finalContent.raw
     ? buildResolutionDescriptionMarkdown(finalContent)
+    : '';
+  const resolutionDescriptionCompact = resolutionDescriptionMarkdown
+    ? compactResolutionDescriptionMarkdown(resolutionDescriptionMarkdown)
     : '';
 
   const hasStructuredFinal = finalContent && !finalContent.raw;
@@ -536,6 +543,24 @@ function App() {
     const timer = setTimeout(() => dispatch({ type: 'CLEAR_DRAFT_JUST_UPDATED' }), 1800);
     return () => clearTimeout(timer);
   }, [draftJustUpdated, dispatch]);
+
+  // After the INITIAL draft arrives (draftContent transitions from falsy to
+  // truthy), scroll the draft block into view so the user immediately sees
+  // the generated content. Subsequent updates are handled by the
+  // `draftJustUpdated` effect above.
+  const hadDraftContentRef = useRef(false);
+  useEffect(() => {
+    const had = hadDraftContentRef.current;
+    const has = !!draftContent;
+    hadDraftContentRef.current = has;
+    if (!had && has && draftOutputRef.current) {
+      // Slight delay so the Enter animation has time to mount the node.
+      const tid = setTimeout(() => {
+        draftOutputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+      return () => clearTimeout(tid);
+    }
+  }, [draftContent]);
 
   // Keep the ref mirror of `currentRun` up to date so async pipelines can
   // read the latest criticism/claim set without closing over stale state.
@@ -712,12 +737,12 @@ function App() {
     // (if any) is discarded.
     dispatch({
       type: 'RUN_START',
-      input: { question, startDate: startDateUTC, endDate: endDateUTC, references, sourceOfTruth, numberOfOutcomes },
+      input: { question, startDate: startDateUTC, endDate: endDateUTC, references, sourceOfTruth, proposedOutcomes },
     });
     try {
       const result = await queryModel(selectedModel, [
         { role: 'system', content: getSystemPrompt('drafter') },
-        { role: 'user', content: buildDraftPrompt(question, startDateUTC, endDateUTC, references, numberOfOutcomes, sourceOfTruth) },
+        { role: 'user', content: buildDraftPrompt(question, startDateUTC, endDateUTC, references, proposedOutcomes, sourceOfTruth) },
       ], { maxTokens: DRAFT_MAX_TOKENS });
       dispatch({ type: 'DRAFT_SUCCESS', content: result.content });
       recordCost('draft', result);
@@ -773,7 +798,7 @@ function App() {
         reviewerModels,
         draftContent,
         RIGOR_RUBRIC,
-        numberOfOutcomes,
+        proposedOutcomes,
         sourceOfTruth,
       );
 
@@ -809,7 +834,7 @@ function App() {
       // when we have 2+ reviewers.
       let deliberatedReview = null;
       if (reviewSummaries.length > 1) {
-        const deliberationPrompt = buildDeliberationPrompt(draftContent, reviewSummaries, numberOfOutcomes);
+        const deliberationPrompt = buildDeliberationPrompt(draftContent, reviewSummaries, proposedOutcomes);
         const delibResult = await queryModel(reviewSummaries[0].model, [
           { role: 'system', content: getSystemPrompt('reviewer') },
           { role: 'user', content: deliberationPrompt },
@@ -898,7 +923,7 @@ function App() {
       );
       const result = await queryModel(selectedModel, [
         { role: 'system', content: getSystemPrompt('drafter') },
-        { role: 'user', content: buildUpdatePrompt(displayedDraftContent, reviewText, humanReviewInput, focusBlock, numberOfOutcomes, references, sourceOfTruth) },
+        { role: 'user', content: buildUpdatePrompt(displayedDraftContent, reviewText, humanReviewInput, focusBlock, proposedOutcomes, references, sourceOfTruth) },
       ], { maxTokens: DRAFT_MAX_TOKENS });
       updatedDraft = result.content;
       recordCost('update', result);
@@ -998,6 +1023,92 @@ function App() {
     }
   };
 
+  // Skip the Update step: keep the current draft as-is and run only the
+  // post-review gates (early-resolution risk + source accessibility) before
+  // Finalize. Surfaced as an option when reviews are complete; if risk
+  // turns out HIGH or sources are unreachable, the existing gates kick in
+  // and the user can still acknowledge or click Update Draft instead.
+  const handleSkipUpdate = async () => {
+    if (!draftContent || reviews.length === 0) return;
+    if (anyLoading) return;
+    dispatch({ type: 'MARK_READY_TO_FINALIZE' });
+
+    const skipDraft = displayedDraftContent;
+
+    // Early-resolution risk check on the (unchanged) current draft.
+    dispatch({ type: 'START_EARLY_RESOLUTION', models: [getModelName(selectedModel)] });
+    try {
+      const riskResult = await queryModel(selectedModel, [
+        { role: 'system', content: getSystemPrompt('earlyResolutionAnalyst') },
+        {
+          role: 'user',
+          content: buildEarlyResolutionPrompt(
+            skipDraft,
+            normalizeUtcDateTime(startDate, '00:00:00'),
+            normalizeUtcDateTime(endDate, '23:59:59'),
+          ),
+        },
+      ]);
+      recordCost('early_resolution', riskResult);
+      dispatch({
+        type: 'EARLY_RESOLUTION_SUCCESS',
+        content: riskResult.content,
+        level: parseRiskLevel(riskResult.content),
+      });
+    } catch (riskErr) {
+      dispatch({
+        type: 'EARLY_RESOLUTION_ERROR',
+        error: riskErr.message || t('error.earlyResolution'),
+      });
+      dispatch({
+        type: 'RUN_LOG',
+        stage: 'early_resolution',
+        level: 'error',
+        message: riskErr.message || t('log.earlyResolutionFailed'),
+      });
+    }
+
+    // Source accessibility check on the (unchanged) current draft.
+    dispatch({ type: 'START_SOURCE_ACCESSIBILITY' });
+    try {
+      const checkResult = await checkResolutionSources({
+        draftContent: skipDraft,
+        references,
+        claims: currentRunRef.current?.claims || [],
+      });
+      dispatch({
+        type: 'RUN_COST',
+        stage: 'source_accessibility',
+        tokensIn: 0,
+        tokensOut: 0,
+        wallClockMs: checkResult.wallClockMs || 0,
+      });
+      dispatch({
+        type: 'SOURCE_ACCESSIBILITY_SUCCESS',
+        result: checkResult,
+      });
+      if (checkResult.logEntry) {
+        dispatch({
+          type: 'RUN_LOG',
+          stage: 'source_accessibility',
+          level: checkResult.logEntry.level,
+          message: checkResult.logEntry.message,
+        });
+      }
+    } catch (srcErr) {
+      dispatch({
+        type: 'SOURCE_ACCESSIBILITY_ERROR',
+        error: srcErr.message || t('error.sourceAccessibility'),
+      });
+      dispatch({
+        type: 'RUN_LOG',
+        stage: 'source_accessibility',
+        level: 'error',
+        message: srcErr.message || t('log.sourceAccessibilityFailed'),
+      });
+    }
+  };
+
   // --- Stage 4: Finalize to structured JSON ---
   // The early-resolution gate (set during handleUpdate) must be cleared
   // before this runs; the Accept button is disabled when needsRiskAck is true.
@@ -1019,7 +1130,7 @@ function App() {
               draftContent,
               normalizeUtcDateTime(startDate, '00:00:00'),
               normalizeUtcDateTime(endDate, '23:59:59'),
-              numberOfOutcomes,
+              proposedOutcomes,
               sourceOfTruth,
             ),
           },
@@ -1088,7 +1199,7 @@ function App() {
         endDate: normalizeUtcDateTime(endDate, '23:59:59'),
         references,
         sourceOfTruth,
-        numberOfOutcomes,
+        proposedOutcomes,
       },
     });
     dispatch({
@@ -1357,20 +1468,57 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="numberOfOutcomes">
-                    {t('form.numberOfOutcomes')} <span className="label-hint">{t('form.optional')}</span>
+                  <label htmlFor="outcomes">
+                    {t('form.outcomes')} <span className="label-hint">{t('form.optional')}</span>
                   </label>
-                  <input
-                    id="numberOfOutcomes"
-                    type="number"
-                    min="2"
-                    step="1"
-                    value={numberOfOutcomes}
-                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'numberOfOutcomes', value: e.target.value })}
-                    placeholder={t('form.numberOfOutcomesPlaceholder')}
-                    className="input"
+                  {proposedOutcomes.length === 0 ? (
+                    <p className="outcome-list__hint">{t('form.outcomesHint')}</p>
+                  ) : (
+                    <ul className="outcome-list" id="outcomes">
+                      {proposedOutcomes.map((name, idx) => (
+                        <li key={idx} className="outcome-list__row">
+                          <span className="outcome-list__index">{idx + 1}.</span>
+                          <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => {
+                              const next = [...proposedOutcomes];
+                              next[idx] = e.target.value;
+                              dispatch({ type: 'SET_FIELD', field: 'proposedOutcomes', value: next });
+                            }}
+                            placeholder={t('form.outcomeNamePlaceholder')}
+                            className="input outcome-list__input"
+                            disabled={loading === 'draft'}
+                            aria-label={t('form.outcomeNameAria', { n: idx + 1 })}
+                          />
+                          <button
+                            type="button"
+                            className="outcome-list__remove"
+                            onClick={() => {
+                              const next = proposedOutcomes.filter((_, i) => i !== idx);
+                              dispatch({ type: 'SET_FIELD', field: 'proposedOutcomes', value: next });
+                            }}
+                            disabled={loading === 'draft'}
+                            aria-label={t('form.outcomeRemoveAria', { n: idx + 1 })}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <button
+                    type="button"
+                    className="outcome-list__add"
+                    onClick={() => dispatch({
+                      type: 'SET_FIELD',
+                      field: 'proposedOutcomes',
+                      value: [...proposedOutcomes, ''],
+                    })}
                     disabled={loading === 'draft'}
-                  />
+                  >
+                    + {t('form.addOutcome')}
+                  </button>
                 </div>
 
                 <div className="form-group">
@@ -1687,6 +1835,37 @@ function App() {
               ) : (
                 <Enter className="draft-review-section">
 
+                  {/* Sub-stage timeline: previews the post-draft path so the
+                      user knows what comes after the current action. State is
+                      derived from the existing pipeline signals. */}
+                  {(() => {
+                    const reviewStage = hasReviews ? 'done' : 'active';
+                    const updateStage = hasUpdated ? 'done' : (hasReviews ? 'active' : 'pending');
+                    const finalizeStage = finalContent ? 'done' : (hasUpdated ? 'active' : 'pending');
+                    const renderMarker = (stage, n) => stage === 'done' ? (
+                      <svg className="stage-timeline__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : n;
+                    const stageClass = (stage) => `stage-timeline__step stage-timeline__step--${stage}`;
+                    return (
+                      <ol className="stage-timeline" aria-label={t('timeline.ariaLabel')}>
+                        <li className={stageClass(reviewStage)} aria-current={reviewStage === 'active' ? 'step' : undefined}>
+                          <span className="stage-timeline__marker">{renderMarker(reviewStage, 1)}</span>
+                          <span className="stage-timeline__label">{t('timeline.reviewDeliberate')}</span>
+                        </li>
+                        <li className={`stage-timeline__connector ${reviewStage === 'done' ? 'stage-timeline__connector--done' : ''}`} aria-hidden="true" />
+                        <li className={stageClass(updateStage)} aria-current={updateStage === 'active' ? 'step' : undefined}>
+                          <span className="stage-timeline__marker">{renderMarker(updateStage, 2)}</span>
+                          <span className="stage-timeline__label">{t('timeline.updateRefine')}</span>
+                        </li>
+                        <li className={`stage-timeline__connector ${updateStage === 'done' ? 'stage-timeline__connector--done' : ''}`} aria-hidden="true" />
+                        <li className={stageClass(finalizeStage)} aria-current={finalizeStage === 'active' ? 'step' : undefined}>
+                          <span className="stage-timeline__marker">{renderMarker(finalizeStage, 3)}</span>
+                          <span className="stage-timeline__label">{t('timeline.finalize')}</span>
+                        </li>
+                      </ol>
+                    );
+                  })()}
+
                   {/* Action Toolbar */}
                   <div className="action-toolbar">
                     {/* Multi-reviewer selector */}
@@ -1822,6 +2001,27 @@ function App() {
                               </>
                             )}
                           </button>
+                          {!hasUpdated && (
+                            <button
+                              type="button"
+                              className="skip-update-button"
+                              disabled={anyLoading}
+                              onClick={handleSkipUpdate}
+                              title={t('toolbar.skipUpdateTitle')}
+                            >
+                              {(loading === 'early-resolution' || loading === 'source-accessibility') ? (
+                                <>
+                                  <span className="spinner" />
+                                  {t('toolbar.checkingGates')}
+                                </>
+                              ) : (
+                                <>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" /></svg>
+                                  {t('toolbar.skipUpdate')}
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -2264,7 +2464,12 @@ function App() {
                     <div className="final-header__icon">
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                     </div>
-                    <h2>{t('final.heading')}</h2>
+                    <div className="final-header__title">
+                      <h2>{t('final.heading')}</h2>
+                      {hasStructuredFinal && (
+                        <span className="final-header__preview-tag">{t('final.previewLabel')}</span>
+                      )}
+                    </div>
                     <div className="final-header__actions">
                       <button
                         className={`copy-btn ${copiedId === 'full-output' ? 'copy-btn--copied' : ''}`}
@@ -2286,6 +2491,19 @@ function App() {
                         </button>
                       )}
                     </div>
+                    {hasStructuredFinal && resolutionDescriptionMarkdown && (
+                      <button
+                        type="button"
+                        className="final-header__scroll-hint"
+                        onClick={() => finalOutputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                      >
+                        <span>{t('final.scrollToOutput')}</span>
+                        <svg className="final-header__scroll-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <polyline points="19 12 12 19 5 12" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
 
                   {finalContent.raw ? (
@@ -2394,7 +2612,38 @@ function App() {
                         )}
                       </div>
 
-                      <details className="final-doc__details stagger-item" style={{ '--stagger': 2 }}>
+                      {resolutionDescriptionMarkdown && (
+                        <section ref={finalOutputRef} className="final-output stagger-item" style={{ '--stagger': 2 }}>
+                          <header className="final-output__header">
+                            <div className="final-output__heading-group">
+                              <span className="final-output__badge">{t('final.dashboardOutputBadge')}</span>
+                              <h3 className="final-output__heading">{t('final.dashboardOutputHeading')}</h3>
+                            </div>
+                            <div className="final-output__actions">
+                              <button
+                                className={`copy-btn ${copiedId === 'description-markdown' ? 'copy-btn--copied' : ''}`}
+                                onClick={() => handleCopy(resolutionDescriptionMarkdown, 'description-markdown')}
+                                title={t('final.copyMarkdownTitle')}
+                              >
+                                {copiedId === 'description-markdown' ? t('common.copied') : t('common.copyMarkdown')}
+                              </button>
+                              <button
+                                className={`copy-btn copy-btn--primary ${copiedId === 'description-compact' ? 'copy-btn--copied' : ''}`}
+                                onClick={() => handleCopy(resolutionDescriptionCompact, 'description-compact')}
+                                title={t('final.copyCompactTitle')}
+                              >
+                                {copiedId === 'description-compact' ? t('common.copied') : t('common.copyCompact')}
+                              </button>
+                            </div>
+                          </header>
+                          <p className="final-output__hint">{t('final.dashboardOutputHint')}</p>
+                          <div className="final-output__body final-doc__text--markdown">
+                            {renderContent(resolutionDescriptionMarkdown)}
+                          </div>
+                        </section>
+                      )}
+
+                      <details className="final-doc__details stagger-item" style={{ '--stagger': 3 }}>
                         <summary>{t('final.showFullSpec')}</summary>
                         <div className="final-doc__details-body">
                           {/* Untruncated outcomes — the market card above
@@ -2425,23 +2674,6 @@ function App() {
                                     )}
                                   </div>
                                 ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {resolutionDescriptionMarkdown && (
-                            <div className="final-doc__section final-doc__section--description">
-                              <div className="final-doc__section-header">
-                                <h3 className="final-doc__heading">{t('final.dashboardDescription')}</h3>
-                                <button
-                                  className={`copy-btn ${copiedId === 'description-markdown' ? 'copy-btn--copied' : ''}`}
-                                  onClick={() => handleCopy(resolutionDescriptionMarkdown, 'description-markdown')}
-                                >
-                                  {copiedId === 'description-markdown' ? t('common.copied') : t('common.copy')}
-                                </button>
-                              </div>
-                              <div className="final-doc__text final-doc__text--markdown">
-                                {renderContent(resolutionDescriptionMarkdown)}
                               </div>
                             </div>
                           )}
@@ -2537,12 +2769,22 @@ function App() {
                         <div className="final-doc__section final-doc__section--description stagger-item" style={{ '--stagger': 4 }}>
                           <div className="final-doc__section-header">
                             <h3 className="final-doc__heading">{t('final.description')}</h3>
-                            <button
-                              className={`copy-btn ${copiedId === 'description-markdown' ? 'copy-btn--copied' : ''}`}
-                              onClick={() => handleCopy(resolutionDescriptionMarkdown, 'description-markdown')}
-                            >
-                              {copiedId === 'description-markdown' ? t('common.copied') : t('common.copy')}
-                            </button>
+                            <div className="final-doc__section-actions">
+                              <button
+                                className={`copy-btn ${copiedId === 'description-markdown' ? 'copy-btn--copied' : ''}`}
+                                onClick={() => handleCopy(resolutionDescriptionMarkdown, 'description-markdown')}
+                                title={t('final.copyMarkdownTitle')}
+                              >
+                                {copiedId === 'description-markdown' ? t('common.copied') : t('common.copyMarkdown')}
+                              </button>
+                              <button
+                                className={`copy-btn ${copiedId === 'description-compact' ? 'copy-btn--copied' : ''}`}
+                                onClick={() => handleCopy(resolutionDescriptionCompact, 'description-compact')}
+                                title={t('final.copyCompactTitle')}
+                              >
+                                {copiedId === 'description-compact' ? t('common.copied') : t('common.copyCompact')}
+                              </button>
+                            </div>
                           </div>
                           <div className="final-doc__text final-doc__text--markdown">
                             {renderContent(resolutionDescriptionMarkdown)}

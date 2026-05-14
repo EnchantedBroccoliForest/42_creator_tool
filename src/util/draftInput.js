@@ -61,8 +61,20 @@ export function validateDraftInputs(input, now = Date.now()) {
     errors.startDate = VALIDATION_ERRORS.START_REQUIRED;
   } else if (!startDateUTC) {
     errors.startDate = VALIDATION_ERRORS.START_INVALID;
-  } else if (new Date(startDateUTC).getTime() <= now) {
-    errors.startDate = VALIDATION_ERRORS.START_PAST;
+  } else {
+    // Reject only dates strictly before today (UTC). The form defaults
+    // startDate to today's date, so a "today" value must remain valid
+    // throughout the entire UTC day — comparing against `now` directly
+    // would invalidate the default the moment 00:00 UTC has passed.
+    const nowDate = new Date(now);
+    const startOfTodayUtc = Date.UTC(
+      nowDate.getUTCFullYear(),
+      nowDate.getUTCMonth(),
+      nowDate.getUTCDate(),
+    );
+    if (new Date(startDateUTC).getTime() < startOfTodayUtc) {
+      errors.startDate = VALIDATION_ERRORS.START_PAST;
+    }
   }
 
   if (!endRaw) {

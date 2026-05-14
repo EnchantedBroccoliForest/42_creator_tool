@@ -7,24 +7,36 @@ import {
 } from '../constants/models';
 import { createRun } from '../types/run';
 
+function getTodayIsoDate() {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // Exported for direct testing of state transitions. Production code should
 // continue to use `useMarketReducer()` below — this re-export only widens
 // the surface for unit tests, it does not change the public hook.
-export const initialState = {
+export function createInitialState() {
+  return {
   // Mode
   mode: 'draft', // 'draft' | 'review' | 'ideating'
 
   // Input
   question: '',
-  startDate: '',
+  startDate: getTodayIsoDate(),
   endDate: '',
   references: '',
+  // Optional user-provided definitive resolution source. Threaded into every
+  // drafter / reviewer / finalizer prompt as an UNTRUSTED block so the model
+  // can validate it before treating it as authoritative. Empty string = none.
   sourceOfTruth: '',
-  // Optional hard restriction on the outcome-set cardinality. Stored as a
-  // string because it comes straight from a text input; empty string means
-  // "no restriction — let the drafter choose". When non-empty, every
-  // drafter / reviewer / finalizer prompt receives it as a hard rule.
-  numberOfOutcomes: '',
+  // User-specified outcome set. Empty array = let the drafter propose
+  // outcomes. When non-empty, every drafter / reviewer / finalizer prompt
+  // receives the names as a hard rule (use these exact outcomes, do not
+  // add / rename / reorder).
+  proposedOutcomes: [],
   selectedModel: DEFAULT_DRAFT_MODEL,
   reviewModels: [...DEFAULT_REVIEW_MODEL_IDS],
   humanReviewInput: '',
@@ -91,7 +103,14 @@ export const initialState = {
   // UI
   copiedId: null,
   runTraceOpen: false,
-};
+  };
+}
+
+// Backward-compatible export: a frozen snapshot of the initial shape with
+// today's date filled in at module load. Tests that import this directly
+// continue to work; production code should call createInitialState() so
+// the start-date default is re-computed each session.
+export const initialState = createInitialState();
 
 function clearEarlyResolution(state) {
   return {
@@ -249,6 +268,18 @@ export function reducer(state, action) {
 
     case 'SET_VIEWING_VERSION':
       return { ...state, viewingVersionIndex: action.index };
+
+    case 'MARK_READY_TO_FINALIZE':
+      // Skip-update path: the user has accepted the current draft as-is and
+      // wants to run only the post-review gates (risk + source accessibility)
+      // before Finalize. Flip `hasUpdated` so the Finalize button surfaces,
+      // and clear any stale gate state from a prior pass — clearEarlyResolution
+      // also drops routingAcknowledged + sourceAccessibility so the gates
+      // re-run cleanly against the (unchanged) current draft.
+      return clearEarlyResolution({
+        ...state,
+        hasUpdated: true,
+      });
 
     case 'CLEAR_DRAFT_JUST_UPDATED':
       return { ...state, draftJustUpdated: false };
@@ -555,7 +586,7 @@ export function reducer(state, action) {
       return { ...state, runTraceOpen: !state.runTraceOpen };
 
     case 'RESET':
-      return initialState;
+      return createInitialState();
 
     case 'SET_COPIED':
       return { ...state, copiedId: action.id };
@@ -584,7 +615,9 @@ function rehydrateFromRun(state, run) {
     endDate: run.input?.endDate || '',
     references: run.input?.references || '',
     sourceOfTruth: run.input?.sourceOfTruth || '',
-    numberOfOutcomes: run.input?.numberOfOutcomes || '',
+    proposedOutcomes: Array.isArray(run.input?.proposedOutcomes)
+      ? [...run.input.proposedOutcomes]
+      : [],
     // View-state rebuild. The run-trace panel is authoritative for imported
     // review details; the main UI still renders the latest draft and final JSON.
     draftContent: lastDraft ? lastDraft.content : null,

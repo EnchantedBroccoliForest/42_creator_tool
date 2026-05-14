@@ -136,7 +136,7 @@ export const GLOBAL_CLAIM_ID = 'global';
  * @typedef {Object} Run
  * @property {string} runId
  * @property {number} startedAt
- * @property {{question:string, startDate:string, endDate:string, references:string, sourceOfTruth?:string, numberOfOutcomes?:string, rigor?:'human'}} input
+ * @property {{question:string, startDate:string, endDate:string, references:string, proposedOutcomes?:string[], numberOfOutcomes?:string, rigor?:'human'}} input
  * @property {DraftRecord[]} drafts
  * @property {Criticism[]} criticisms
  * @property {Claim[]} claims
@@ -387,12 +387,16 @@ export const RunSchema = z.object({
     startDate: z.string(),
     endDate: z.string(),
     references: z.string(),
-    // Optional definitive resolution source. Runs exported before this field
-    // existed default to '' for import compatibility.
+    // Optional user-provided definitive resolution source. Threaded into
+    // every prompt as an UNTRUSTED block. Older exports default to "".
     sourceOfTruth: z.string().optional().default(''),
-    // Optional hard restriction on outcome-set cardinality. Absent (or empty)
-    // on runs exported before this field existed — defaulted to '' so older
-    // run files still validate against this schema.
+    // User-specified outcome set. Empty array means "let the drafter
+    // propose"; non-empty means a hard restriction on the outcome names
+    // and ordering. Optional on the schema so older exports validate.
+    proposedOutcomes: z.array(z.string()).optional().default([]),
+    // Legacy numeric outcome-count field. Retained for backward compat
+    // with run files exported before `proposedOutcomes` existed; new
+    // runs never populate it.
     numberOfOutcomes: z.string().optional().default(''),
     // Legacy run field retained for import/export compatibility. Older or
     // unknown values are normalized to the single supported value.
@@ -443,7 +447,7 @@ export function createEmptyCost() {
 
 /**
  * Construct a fresh Run from the drafting inputs.
- * @param {{question:string, startDate:string, endDate:string, references:string, sourceOfTruth?:string, numberOfOutcomes?:string, rigor?:'human'}} input
+ * @param {{question:string, startDate:string, endDate:string, references:string, sourceOfTruth?:string, proposedOutcomes?:string[], numberOfOutcomes?:string, rigor?:'human'}} input
  * @returns {Run}
  */
 export function createRun(input) {
@@ -456,6 +460,9 @@ export function createRun(input) {
       endDate: input?.endDate || '',
       references: input?.references || '',
       sourceOfTruth: input?.sourceOfTruth || '',
+      proposedOutcomes: Array.isArray(input?.proposedOutcomes)
+        ? input.proposedOutcomes.filter((s) => typeof s === 'string' && s.trim().length > 0)
+        : [],
       numberOfOutcomes: input?.numberOfOutcomes || '',
       rigor: normalizeRigor(input?.rigor),
     },
