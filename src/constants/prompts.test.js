@@ -92,6 +92,20 @@ describe('SYSTEM_PROMPTS', () => {
     expect(PROTOCOL_CONTEXT).toMatch(/api_key/);
     expect(PROTOCOL_CONTEXT).toMatch(/Bearer token/);
   });
+
+  it('PROTOCOL_CONTEXT requires resolution-source URLs to be stable 200-OK pages', () => {
+    expect(PROTOCOL_CONTEXT).toMatch(/STABLE & 200-OK/);
+    expect(PROTOCOL_CONTEXT).toMatch(/not a 404/);
+    expect(PROTOCOL_CONTEXT).toMatch(/redirect to a homepage/);
+    expect(PROTOCOL_CONTEXT).toMatch(/date-rotated path/);
+  });
+
+  it('PROTOCOL_CONTEXT forbids XML / RSS / Atom feed URLs as resolution sources', () => {
+    expect(PROTOCOL_CONTEXT).toMatch(/NO XML \/ RSS \/ ATOM FEEDS/);
+    expect(PROTOCOL_CONTEXT).toMatch(/\.xml/);
+    expect(PROTOCOL_CONTEXT).toMatch(/\.rss/);
+    expect(PROTOCOL_CONTEXT).toMatch(/format=xml/);
+  });
 });
 
 describe('getSystemPrompt(role)', () => {
@@ -259,6 +273,11 @@ describe('prompt builders', () => {
     expect(out).toMatch(/begins literally with "Secondary source:"/);
     expect(out).toMatch(/emit ONLY the primary bullet/);
     expect(out).toMatch(/no api_key query parameters/);
+    // XML/RSS feeds are forbidden as resolution sources.
+    expect(out).toMatch(/XML \/ RSS \/ ATOM feed URLs/);
+    // The verify-reminder line must be required verbatim so the disclaimer
+    // is baked into every emitted description, not just the UI shell.
+    expect(out).toMatch(/Manually verify each link above returns the live resolution value/);
     // Criteria and Additional Information must both be bulleted lists; the
     // Criteria bullets are full proper sentences, the Additional Information
     // bullets are succinct sentences.

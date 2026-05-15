@@ -1441,6 +1441,26 @@ select.input optgroup {
   line-height: 1.7;
 }
 
+/* Italic verify-reminder line inside the rendered Resolution Source
+   block. The util emits it as a standalone "_..._" line so it travels
+   with the copied artifact; this rule just makes it pop slightly in the
+   UI. The selector targets a paragraph whose ONLY child is <em> — that
+   is, an italic-wrapped single line. */
+.final-output__body p.md-paragraph:has(> em:only-child) {
+  margin: 0.6rem 0 0;
+  padding: 0.45rem 0.7rem;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-glow);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-1);
+}
+
+.final-output__body p.md-paragraph:has(> em:only-child) em {
+  font-style: italic;
+}
+
 .copy-btn--primary {
   background: var(--accent);
   color: var(--bg-dark);
@@ -3716,4 +3736,217 @@ select.input optgroup {
 .App.theme-light .run-trace__routing--blocked {
   background: rgba(200, 68, 68, 0.18);
   color: rgb(155, 44, 44);
+}
+
+/* ================================================
+   Intro splash — one-time landing display
+   Fades in on mount with staggered child entries,
+   fades + scales out on dismissal revealing the
+   main flow underneath. Persisted via localStorage
+   so it shows once per browser.
+   ================================================ */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  background: var(--bg-dark);
+  /* Subtle radial wash so the panel doesn't feel like a flat slab. */
+  background-image:
+    radial-gradient(120% 80% at 50% 0%, var(--accent-glow), transparent 70%),
+    radial-gradient(80% 60% at 50% 110%, var(--accent-glow), transparent 70%);
+  opacity: 0;
+  transition: opacity 360ms ease, transform 360ms ease, filter 360ms ease;
+  filter: blur(6px);
+  outline: none;
+}
+
+.intro--mounted {
+  opacity: 1;
+  filter: blur(0);
+}
+
+.intro--leaving {
+  opacity: 0;
+  transform: scale(0.985);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.intro__content {
+  width: min(720px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.05rem;
+}
+
+.intro__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.intro__mark svg {
+  border-radius: 12px;
+  box-shadow: 0 12px 30px -16px var(--accent-glow);
+}
+
+.intro__title {
+  font-family: var(--font-body);
+  font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--text-1);
+}
+
+.intro__subtitle {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--text-2);
+  line-height: 1.55;
+  max-width: 56ch;
+}
+
+.intro__steps {
+  list-style: none;
+  margin: 0.4rem 0 0.3rem;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.intro__step {
+  flex: 1 1 180px;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.85rem 0.95rem 0.95rem;
+  text-align: left;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
+}
+
+.intro__step:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.intro__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-dark);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.intro__step-label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.intro__step-desc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+
+.intro__arrow {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-body);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-3);
+  user-select: none;
+  align-self: center;
+}
+
+.intro__enter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+  padding: 0.65rem 1.3rem;
+  background: var(--accent);
+  color: var(--bg-dark);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  box-shadow: 0 8px 26px -12px var(--accent);
+}
+
+.intro__enter:hover,
+.intro__enter:focus-visible {
+  background: var(--accent-light);
+  border-color: var(--accent-light);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px -12px var(--accent-light);
+}
+
+.intro__enter svg {
+  transition: transform 180ms ease;
+}
+
+.intro__enter:hover svg,
+.intro__enter:focus-visible svg {
+  transform: translateX(3px);
+}
+
+/* Hide the arrows on narrow screens so the three cards stack cleanly. */
+@media (max-width: 640px) {
+  .intro__arrow {
+    display: none;
+  }
+  .intro__step {
+    flex: 1 1 100%;
+    max-width: 360px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro,
+  .intro--leaving {
+    transition: opacity 160ms ease;
+    filter: none;
+    transform: none;
+  }
+  .intro .stagger-item {
+    animation: none;
+    opacity: 1;
+  }
 }

@@ -77,6 +77,17 @@ describe("buildResolutionDescriptionMarkdown", () => {
     expect(markdown).not.toMatch(/- Primary source — /);
     expect(markdown).not.toMatch(/- Secondary source — /);
     expect(markdown).not.toContain("Use https://");
+    // Verify reminder is baked into the description so it travels with the
+    // copied artifact, sitting after the Source bullets and before the
+    // Additional Information section.
+    expect(markdown).toMatch(
+      /_Manually verify each link above returns the live resolution value before submitting — AI-proposed URLs can 404, redirect, or point at the wrong page\._/,
+    );
+    const sourceIdxLocal = markdown.indexOf("## Resolution Source");
+    const reminderIdx = markdown.indexOf("_Manually verify each link above");
+    const additionalIdxLocal = markdown.indexOf("## Additional Information");
+    expect(reminderIdx).toBeGreaterThan(sourceIdxLocal);
+    expect(reminderIdx).toBeLessThan(additionalIdxLocal);
 
     expect(markdown).toContain("## Additional Information");
     expect(markdown).toContain(
@@ -140,6 +151,45 @@ describe("buildResolutionDescriptionMarkdown", () => {
     expect(markdown).not.toMatch(
       /Apply listed edge cases and exclusions, including:/,
     );
+  });
+
+  it("skips XML / RSS / Atom URLs and falls through to the next eligible source", () => {
+    const markdown = buildResolutionDescriptionMarkdown({
+      ...FINAL_JSON,
+      fullResolutionRules:
+        "1. Use https://feed.example.com/results.xml for the score. 2. Fallback at https://results.example.org/match/42 for confirmation.",
+    });
+
+    // The .xml feed must be filtered out; the HTML fallback becomes primary.
+    expect(markdown).not.toContain("results.xml");
+    expect(markdown).not.toContain("feed.example.com");
+    expect(markdown).toContain("- Primary source: [results.example.org](https://results.example.org/match/42)");
+  });
+
+  it("skips RSS / Atom paths and feed-format query params too", () => {
+    const markdown = buildResolutionDescriptionMarkdown({
+      ...FINAL_JSON,
+      fullResolutionRules:
+        "1. https://news.example.com/rss/finals 2. https://api.example.org/scores?format=xml 3. https://canonical.example.net/match/42",
+    });
+
+    expect(markdown).not.toContain("/rss/");
+    expect(markdown).not.toContain("format=xml");
+    expect(markdown).toContain("- Primary source: [canonical.example.net](https://canonical.example.net/match/42)");
+  });
+
+  it("emits the placeholder + reminder when every harvested URL is XML/RSS", () => {
+    const markdown = buildResolutionDescriptionMarkdown({
+      ...FINAL_JSON,
+      fullResolutionRules:
+        "1. https://only.example.com/feed.xml 2. https://other.example.org/atom",
+    });
+
+    expect(markdown).toContain(
+      "- Primary source: add the external URL before dashboard submission",
+    );
+    expect(markdown).not.toContain("feed.example");
+    expect(markdown).toMatch(/_Manually verify each link above/);
   });
 
   it("falls back to a single edge-case bullet when no edge cases are provided", () => {
