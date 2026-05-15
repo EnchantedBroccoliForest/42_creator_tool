@@ -1441,6 +1441,26 @@ select.input optgroup {
   line-height: 1.7;
 }
 
+/* Italic verify-reminder line inside the rendered Resolution Source
+   block. The util emits it as a standalone "_..._" line so it travels
+   with the copied artifact; this rule just makes it pop slightly in the
+   UI. The selector targets a paragraph whose ONLY child is <em> — that
+   is, an italic-wrapped single line. */
+.final-output__body p.md-paragraph:has(> em:only-child) {
+  margin: 0.6rem 0 0;
+  padding: 0.45rem 0.7rem;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-glow);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-1);
+}
+
+.final-output__body p.md-paragraph:has(> em:only-child) em {
+  font-style: italic;
+}
+
 .copy-btn--primary {
   background: var(--accent);
   color: var(--bg-dark);

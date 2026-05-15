@@ -47,6 +47,30 @@ function hostFromUrl(url) {
   }
 }
 
+/**
+ * XML / RSS / Atom feed URLs are not eligible 42.space resolution sources —
+ * they are intermediate machine formats, not the human-facing canonical
+ * page the oracle references at settlement. Recognises:
+ *   - paths ending in .xml / .rss / .atom (with optional querystring/hash)
+ *   - paths containing /rss/ or /atom/
+ *   - query strings with format=xml / output=xml / type=xml / fmt=xml
+ */
+function isXmlFeedUrl(url) {
+  if (typeof url !== 'string') return false;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  const pathname = parsed.pathname.toLowerCase();
+  if (/\.(xml|rss|atom)$/.test(pathname)) return true;
+  if (/(^|\/)(rss|atom)(\/|$)/.test(pathname)) return true;
+  const search = parsed.search.toLowerCase();
+  if (/[?&](format|output|type|fmt)=(xml|rss|atom)\b/.test(search)) return true;
+  return false;
+}
+
 function normalizeLanguageCode(code) {
   const normalized = oneLine(code).toLowerCase();
   return /^[a-z]{2}$/.test(normalized) ? normalized : 'en';
@@ -135,6 +159,9 @@ function buildResolutionSource(finalJson) {
     const matches = text.match(URL_PATTERN) || [];
     for (const raw of matches) {
       const url = stripTrailingUrlPunctuation(raw);
+      // XML / RSS / Atom feed URLs are not eligible resolution sources;
+      // skip them and keep harvesting so the next candidate gets a chance.
+      if (isXmlFeedUrl(url)) continue;
       const host = hostFromUrl(url);
       if (!seen.has(host)) {
         seen.add(host);
@@ -149,8 +176,16 @@ function buildResolutionSource(finalJson) {
   const uiParams = oneLine(finalJson?.resolutionSourceParameters || finalJson?.resolutionUiParameters);
   const paramsLine = uiParams || 'use the page state, filters, and timestamp specified in the resolution rules';
 
+  // Final italic reminder line, baked into every Resolution Source block so
+  // it travels with the copied artifact, not only as a UI badge.
+  const VERIFY_REMINDER = '_Manually verify each link above returns the live resolution value before submitting — AI-proposed URLs can 404, redirect, or point at the wrong page._';
+
   if (urls.length === 0) {
-    return `- Primary source: add the external URL before dashboard submission; ${paramsLine}.`;
+    return [
+      `- Primary source: add the external URL before dashboard submission; ${paramsLine}.`,
+      '',
+      VERIFY_REMINDER,
+    ].join('\n');
   }
 
   const primaryUrl = urls[0];
@@ -165,6 +200,7 @@ function buildResolutionSource(finalJson) {
   // If no secondary URL was harvested, omit the secondary line entirely —
   // a placeholder ("name a substantively different fallback…") is noise on
   // the artifact, not useful information.
+  lines.push('', VERIFY_REMINDER);
   return lines.join('\n');
 }
 

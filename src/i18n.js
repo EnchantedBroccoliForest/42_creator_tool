@@ -281,6 +281,8 @@ const EN = {
   "final.dashboardOutputHeading": "Resolution description for ancillary data",
   "final.dashboardOutputHint":
     "This is the artifact the market submits. Paste the Markdown into the description field on 42.space; use the String-Compacted Markdown copy for on-chain ancillary data.",
+  "final.sourceDisclaimer":
+    "Verify every Resolution Source link before submitting. AI-proposed URLs can 404, redirect to a homepage, or point at a page that no longer carries the resolution value — open each link, confirm it returns the live value, and replace any broken or rotted source.",
   "final.copyMarkdownTitle":
     "Copy raw Markdown (with real line breaks) — paste this into a Markdown preview, a docs editor, or anywhere you want the rendered description to read like normal text.",
   "final.copyCompactTitle":
@@ -654,6 +656,8 @@ const ZH = {
   "final.dashboardOutputHeading": "提交到 42.space 面板的解析描述",
   "final.dashboardOutputHint":
     "这是市场实际提交的内容。将 Markdown 粘贴到 42.space 的描述字段;链上 ancillary data 请使用「复制压缩字符串 Markdown」。",
+  "final.sourceDisclaimer":
+    "提交前请逐一核验每个解析来源链接。AI 给出的 URL 可能 404、跳转到首页或指向已不再包含解析数据的页面 — 请打开每个链接,确认仍能读到对应的解析值,如已失效请替换。",
   "final.copyMarkdownTitle":
     "复制原始 Markdown(包含真实换行)— 适合粘贴到 Markdown 预览、文档编辑器等需要正常渲染的地方。",
   "final.copyCompactTitle":
