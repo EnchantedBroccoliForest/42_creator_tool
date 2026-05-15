@@ -30,6 +30,21 @@ const EN = {
   "timeline.updateRefine": "Update / Refine",
   "timeline.finalize": "Finalize",
 
+  // Intro splash
+  "intro.title": "42 Creator Tool",
+  "intro.subtitle":
+    "Draft, verify, and finalize prediction-market proposals for 42.space.",
+  "intro.stepsAria": "How it works",
+  "intro.step1Label": "Draft",
+  "intro.step1Desc": "Ask a question, pick UTC dates, and (optionally) name outcomes.",
+  "intro.step2Label": "Review",
+  "intro.step2Desc":
+    "A council of AI reviewers critiques the draft against 42's rigor rubric.",
+  "intro.step3Label": "Finalize",
+  "intro.step3Desc":
+    "Refine, then export dashboard-ready Markdown ready to submit.",
+  "intro.enter": "Enter the tool",
+
   // Mode toggle
   "mode.ideating": "Ideating",
   "mode.draftMarket": "Draft Market",
@@ -399,6 +414,18 @@ const ZH = {
   "timeline.reviewDeliberate": "审阅并讨论",
   "timeline.updateRefine": "更新与修订",
   "timeline.finalize": "定稿",
+
+  // Intro splash
+  "intro.title": "42 创作工具",
+  "intro.subtitle": "为 42.space 起草、校验并完成预测市场提案。",
+  "intro.stepsAria": "工作原理",
+  "intro.step1Label": "起草",
+  "intro.step1Desc": "提出问题、选定 UTC 日期、可选地列出结果。",
+  "intro.step2Label": "审阅",
+  "intro.step2Desc": "AI 审阅小组依据 42 的严谨度评分维度对草稿进行批评。",
+  "intro.step3Label": "定稿",
+  "intro.step3Desc": "修订后导出可直接粘贴到 42.space 的 Markdown 文本。",
+  "intro.enter": "进入工具",
 
   // Mode toggle
   "mode.ideating": "构思",

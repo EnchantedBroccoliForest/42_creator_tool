@@ -50,6 +50,7 @@ import { useAmbientMode } from './hooks/useAmbientMode';
 import ModelSelect from './components/ModelSelect';
 import AmbientModeToggle from './components/AmbientModeToggle';
 import LanguageToggle from './components/LanguageToggle';
+import Intro from './components/Intro';
 import { useLanguage } from './hooks/useLanguage';
 
 /** Lightweight markdown-ish rendering: **bold**, bullet lists, numbered lists */
@@ -1300,6 +1301,7 @@ function App() {
 
   return (
     <div className={`App ${ambientConfig.classes.join(' ')}`}>
+      <Intro />
       {/* Floating header controls. */}
       <div className="top-right-controls">
         <LanguageToggle />
