@@ -275,9 +275,10 @@ describe('prompt builders', () => {
     expect(out).toMatch(/no api_key query parameters/);
     // XML/RSS feeds are forbidden as resolution sources.
     expect(out).toMatch(/XML \/ RSS \/ ATOM feed URLs/);
-    // The verify-reminder line must be required verbatim so the disclaimer
-    // is baked into every emitted description, not just the UI shell.
-    expect(out).toMatch(/Manually verify each link above returns the live resolution value/);
+    // The verify-each-link reminder is UI-only (a shell disclaimer next to
+    // the rendered description) — it must NOT be required inside the
+    // emitted markdown, since that would ship into 42.space ancillary data.
+    expect(out).not.toMatch(/Manually verify each link above returns the live resolution value/);
     // Criteria and Additional Information must both be bulleted lists; the
     // Criteria bullets are full proper sentences, the Additional Information
     // bullets are succinct sentences.
