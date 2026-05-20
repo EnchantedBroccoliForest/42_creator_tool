@@ -77,17 +77,10 @@ describe("buildResolutionDescriptionMarkdown", () => {
     expect(markdown).not.toMatch(/- Primary source — /);
     expect(markdown).not.toMatch(/- Secondary source — /);
     expect(markdown).not.toContain("Use https://");
-    // Verify reminder is baked into the description so it travels with the
-    // copied artifact, sitting after the Source bullets and before the
-    // Additional Information section.
-    expect(markdown).toMatch(
-      /_Manually verify each link above returns the live resolution value before submitting — AI-proposed URLs can 404, redirect, or point at the wrong page\._/,
-    );
-    const sourceIdxLocal = markdown.indexOf("## Resolution Source");
-    const reminderIdx = markdown.indexOf("_Manually verify each link above");
-    const additionalIdxLocal = markdown.indexOf("## Additional Information");
-    expect(reminderIdx).toBeGreaterThan(sourceIdxLocal);
-    expect(reminderIdx).toBeLessThan(additionalIdxLocal);
+    // The verify-source reminder is UI-only and must NOT appear in the
+    // markdown — it would otherwise ship to 42.space's ancillary data.
+    expect(markdown).not.toMatch(/Manually verify each link/);
+    expect(markdown).not.toMatch(/AI-proposed URLs can 404/);
 
     expect(markdown).toContain("## Additional Information");
     expect(markdown).toContain(
@@ -189,7 +182,7 @@ describe("buildResolutionDescriptionMarkdown", () => {
       "- Primary source: add the external URL before dashboard submission",
     );
     expect(markdown).not.toContain("feed.example");
-    expect(markdown).toMatch(/_Manually verify each link above/);
+    expect(markdown).not.toMatch(/Manually verify each link/);
   });
 
   it("falls back to a single edge-case bullet when no edge cases are provided", () => {

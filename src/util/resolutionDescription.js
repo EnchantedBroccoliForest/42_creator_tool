@@ -176,16 +176,12 @@ function buildResolutionSource(finalJson) {
   const uiParams = oneLine(finalJson?.resolutionSourceParameters || finalJson?.resolutionUiParameters);
   const paramsLine = uiParams || 'use the page state, filters, and timestamp specified in the resolution rules';
 
-  // Final italic reminder line, baked into every Resolution Source block so
-  // it travels with the copied artifact, not only as a UI badge.
-  const VERIFY_REMINDER = '_Manually verify each link above returns the live resolution value before submitting — AI-proposed URLs can 404, redirect, or point at the wrong page._';
+  // The "verify each link" reminder is intentionally NOT in this output.
+  // It lives as a UI-only disclaimer next to the rendered description so
+  // it never gets copied into 42.space's ancillary data.
 
   if (urls.length === 0) {
-    return [
-      `- Primary source: add the external URL before dashboard submission; ${paramsLine}.`,
-      '',
-      VERIFY_REMINDER,
-    ].join('\n');
+    return `- Primary source: add the external URL before dashboard submission; ${paramsLine}.`;
   }
 
   const primaryUrl = urls[0];
@@ -200,7 +196,6 @@ function buildResolutionSource(finalJson) {
   // If no secondary URL was harvested, omit the secondary line entirely —
   // a placeholder ("name a substantively different fallback…") is noise on
   // the artifact, not useful information.
-  lines.push('', VERIFY_REMINDER);
   return lines.join('\n');
 }
 

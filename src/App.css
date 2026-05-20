@@ -1441,24 +1441,185 @@ select.input optgroup {
   line-height: 1.7;
 }
 
-/* Italic verify-reminder line inside the rendered Resolution Source
-   block. The util emits it as a standalone "_..._" line so it travels
-   with the copied artifact; this rule just makes it pop slightly in the
-   UI. The selector targets a paragraph whose ONLY child is <em> — that
-   is, an italic-wrapped single line. */
-.final-output__body p.md-paragraph:has(> em:only-child) {
-  margin: 0.6rem 0 0;
-  padding: 0.45rem 0.7rem;
-  border-left: 3px solid var(--accent);
+/* UI-only verify-reminder. Sits inside .final-output AFTER the body so
+   the user reads it on screen, but lives outside the copyable markdown
+   so it never ships into 42.space's ancillary data. Styled as a slim
+   amber-bordered callout to match the rest of the output card. */
+.final-output__disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  border-radius: 0 6px 6px 0;
   background: var(--accent-glow);
-  border-radius: 0 4px 4px 0;
+  color: var(--text-1);
+  font-family: var(--font-body);
   font-size: 12px;
   line-height: 1.55;
-  color: var(--text-1);
 }
 
-.final-output__body p.md-paragraph:has(> em:only-child) em {
-  font-style: italic;
+.final-output__disclaimer svg {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: var(--accent);
+}
+
+/* Market title mini-card — sits above the final-output block so the
+   user can grab the refined question independently from the description
+   markdown. Quieter visual weight than .final-output to keep the
+   description as the primary artifact. */
+.final-title-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1.05rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.final-title-card:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.final-title-card__label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.final-title-card__label {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.final-title-card__text {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.4;
+}
+
+.final-title-card .copy-btn {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .final-title-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .final-title-card .copy-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Final outcomes mapping — quick at-a-glance list of the Outcome Token
+   names that will spawn at launch. Pairs with the title card above. */
+.final-outcomes-card {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1.05rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.final-outcomes-card:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.final-outcomes-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 0.55rem;
+}
+
+.final-outcomes-card__label {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.final-outcomes-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.final-outcomes-card__item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 4px;
+  transition: background 140ms ease;
+}
+
+.final-outcomes-card__item:hover {
+  background: var(--surface-2);
+}
+
+.final-outcomes-card__num {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-dark);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.final-outcomes-card__name {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-1);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .final-outcomes-card__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+  .final-outcomes-card__header .copy-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .copy-btn--primary {
