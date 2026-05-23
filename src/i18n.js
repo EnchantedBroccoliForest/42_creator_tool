@@ -403,6 +403,19 @@ const EN = {
   "error.importInvalid": "Import failed: file is not a valid Run JSON.",
   "error.importGeneric": "Import failed: {message}",
   "error.readImport": "Failed to read import file.",
+
+  // API key gate
+  "apiKey.title": "Enter your OpenRouter API key",
+  "apiKey.body":
+    "This tool runs entirely in your browser and calls OpenRouter directly with your key. Paste your own key below to use the app.",
+  "apiKey.placeholder": "sk-or-v1-...",
+  "apiKey.submit": "Continue",
+  "apiKey.hint": "Don't have one? Get a key at",
+  "apiKey.notice":
+    "Your key is kept in memory for this session only — it is never saved to disk, cookies, or local storage, and refreshing the page will clear it.",
+  "apiKey.errorEmpty": "Please paste your OpenRouter API key.",
+  "apiKey.errorFormat":
+    "That doesn't look like an OpenRouter key. Keys start with \"sk-or-\".",
 };
 
 const ZH = {
@@ -784,6 +797,19 @@ const ZH = {
   "error.importInvalid": "导入失败:文件不是有效的运行 JSON。",
   "error.importGeneric": "导入失败:{message}",
   "error.readImport": "读取导入文件失败。",
+
+  // API key gate
+  "apiKey.title": "请输入你的 OpenRouter API 密钥",
+  "apiKey.body":
+    "本工具完全在你的浏览器中运行,并使用你的密钥直接调用 OpenRouter。请在下方粘贴你自己的密钥以使用此应用。",
+  "apiKey.placeholder": "sk-or-v1-...",
+  "apiKey.submit": "继续",
+  "apiKey.hint": "还没有密钥?可前往",
+  "apiKey.notice":
+    "你的密钥仅在本次会话的内存中保留 — 绝不会写入磁盘、Cookie 或本地存储,刷新页面后即会清除。",
+  "apiKey.errorEmpty": "请粘贴你的 OpenRouter API 密钥。",
+  "apiKey.errorFormat":
+    "这看起来不像 OpenRouter 密钥。密钥应以 “sk-or-” 开头。",
 };
 
 export const TRANSLATIONS = { en: EN, zh: ZH };

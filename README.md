@@ -273,13 +273,13 @@ eval/
 npm install
 ```
 
-Create a `.env` file (or set the environment variable directly):
+**Web app:** the app prompts you for your OpenRouter API key the first time you load it. The key is held in memory for that browser session only — it is never written to disk, cookies, or local storage, and refreshing the page clears it. No API key is ever embedded in the production bundle.
 
-```
-VITE_OPENROUTER_API_KEY=your_openrouter_api_key
-```
+**CLI / headless / HTTP service:** set the `OPENROUTER_API_KEY` environment variable (do not prefix with `VITE_`):
 
-For CLI / headless usage, `OPENROUTER_API_KEY` (without the `VITE_` prefix) is also accepted and takes precedence.
+```bash
+export OPENROUTER_API_KEY=sk-or-...
+```
 
 ### Development
 

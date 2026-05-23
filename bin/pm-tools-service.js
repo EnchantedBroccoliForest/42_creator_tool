@@ -23,7 +23,6 @@ FLAGS
 
 ENVIRONMENT
   OPENROUTER_API_KEY         Required for live reviews
-  VITE_OPENROUTER_API_KEY    Fallback API key
   PM_TOOLS_SERVICE_TOKEN     Bearer token for POST /review
   PM_TOOLS_HOST              Default host
   PM_TOOLS_PORT              Default port
@@ -42,11 +41,7 @@ ENDPOINTS
 `;
 
 function hasApiKey() {
-  return Boolean(
-    process.env.OPENROUTER_API_KEY ||
-    process.env.VITE_OPENROUTER_API_KEY ||
-    process.env.VITE_OPENAI_API_KEY
-  );
+  return Boolean(process.env.OPENROUTER_API_KEY);
 }
 
 function isLocalHost(host) {

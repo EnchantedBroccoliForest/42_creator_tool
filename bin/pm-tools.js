@@ -58,8 +58,7 @@ IDEATE FLAGS
   --drafter          OpenRouter model ID
 
 ENVIRONMENT
-  OPENROUTER_API_KEY         API key (preferred)
-  VITE_OPENROUTER_API_KEY    API key (Vite fallback)
+  OPENROUTER_API_KEY         API key (required for live runs)
   XAPI_KEY                   xAPI key for X/Twitter enrichment (optional)
 
 STDIN
@@ -447,11 +446,7 @@ async function main() {
   // Check for API key early — but `report` is offline-only and must work
   // without one (that's the whole point: re-render a saved Run from disk).
   if (command !== 'report') {
-    const hasKey = !!(
-      process.env.OPENROUTER_API_KEY ||
-      process.env.VITE_OPENROUTER_API_KEY ||
-      process.env.VITE_OPENAI_API_KEY
-    );
+    const hasKey = !!process.env.OPENROUTER_API_KEY;
     if (!hasKey) {
       process.stderr.write(
         'Error: No API key found. Set OPENROUTER_API_KEY in your environment.\n' +
