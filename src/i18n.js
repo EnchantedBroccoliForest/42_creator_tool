@@ -416,6 +416,10 @@ const EN = {
   "apiKey.errorEmpty": "Please paste your OpenRouter API key.",
   "apiKey.errorFormat":
     "That doesn't look like an OpenRouter key. Keys start with \"sk-or-\".",
+  "apiKey.xapiToggle": "Optional: add an xAPI key for X/Twitter enrichment",
+  "apiKey.xapiBody":
+    "If you supply an xAPI (action.xapi.to) key, the pipeline will hydrate X/Twitter handles and links in your References block with real profile / tweet context. Like the OpenRouter key, this is held in memory only and cleared on refresh. Leave blank to skip.",
+  "apiKey.xapiPlaceholder": "xAPI key (optional)",
 };
 
 const ZH = {
@@ -810,6 +814,10 @@ const ZH = {
   "apiKey.errorEmpty": "请粘贴你的 OpenRouter API 密钥。",
   "apiKey.errorFormat":
     "这看起来不像 OpenRouter 密钥。密钥应以 “sk-or-” 开头。",
+  "apiKey.xapiToggle": "可选:添加 xAPI 密钥以启用 X/Twitter 丰富化",
+  "apiKey.xapiBody":
+    "若提供 xAPI(action.xapi.to)密钥,流水线会用真实的资料/推文上下文丰富你「参考资料」中的 X/Twitter 账号与链接。与 OpenRouter 密钥一样,仅保留在内存中,刷新后即清除。留空则跳过。",
+  "apiKey.xapiPlaceholder": "xAPI 密钥(可选)",
 };
 
 export const TRANSLATIONS = { en: EN, zh: ZH };
