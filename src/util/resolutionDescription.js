@@ -71,11 +71,6 @@ function isXmlFeedUrl(url) {
   return false;
 }
 
-function normalizeLanguageCode(code) {
-  const normalized = oneLine(code).toLowerCase();
-  return /^[a-z]{2}$/.test(normalized) ? normalized : 'en';
-}
-
 function normalizeMarkdown(markdown) {
   return typeof markdown === 'string'
     ? markdown.trim().replace(/\r\n/g, '\n')
@@ -87,13 +82,10 @@ export function isStandardResolutionDescription(markdown) {
   // Anchor each heading at the start of a line so the H1 headings
   // (`# Summary`) don't falsely match older H2 markdown that
   // contains `## Summary` as a substring.
-  const hasAllHeadings = STANDARD_HEADINGS.every((heading) => {
+  return STANDARD_HEADINGS.every((heading) => {
     const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`(?:^|\\n)${escaped}(?:\\n|$)`).test(normalized);
   });
-  return hasAllHeadings
-    && normalized.includes('---')
-    && /_Language:\s*[a-z]{2}_/i.test(normalized);
 }
 
 function buildSummarySentence(finalJson) {
@@ -249,8 +241,8 @@ function buildAdditionalInformation(finalJson) {
  *   - exactly one blank line (\n\n) between sections, never more
  *   - no leading/trailing whitespace
  *
- * Leaves the structure (## headings, --- separator, language footer)
- * byte-for-byte stable; only encoding changes.
+ * Leaves the structure (## headings) byte-for-byte stable; only encoding
+ * changes.
  */
 export function compactResolutionDescriptionMarkdown(markdown) {
   if (typeof markdown !== 'string') return '';
@@ -265,23 +257,19 @@ export function compactResolutionDescriptionMarkdown(markdown) {
   return JSON.stringify(normalized).slice(1, -1);
 }
 
-export function buildCompactedResolutionDescription(finalJson, options = {}) {
+export function buildCompactedResolutionDescription(finalJson) {
   return compactResolutionDescriptionMarkdown(
-    buildResolutionDescriptionMarkdown(finalJson, options),
+    buildResolutionDescriptionMarkdown(finalJson),
   );
 }
 
-export function buildResolutionDescriptionMarkdown(finalJson, options = {}) {
+export function buildResolutionDescriptionMarkdown(finalJson) {
   const modelMarkdown = normalizeMarkdown(
     finalJson?.resolutionDescriptionMarkdown || finalJson?.descriptionMarkdown,
   );
   if (isStandardResolutionDescription(modelMarkdown)) {
     return modelMarkdown;
   }
-
-  const language = normalizeLanguageCode(
-    finalJson?.language || finalJson?.languageCode || options.language,
-  );
 
   return [
     '## Summary',
@@ -295,8 +283,5 @@ export function buildResolutionDescriptionMarkdown(finalJson, options = {}) {
     '',
     '## Additional Information',
     buildAdditionalInformation(finalJson),
-    '',
-    '---',
-    `_Language: ${language}_`,
   ].join('\n');
 }

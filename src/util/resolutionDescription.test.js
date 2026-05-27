@@ -38,9 +38,6 @@ describe("buildResolutionDescriptionMarkdown", () => {
       "",
       "## Additional Information",
       "Exclude friendlies. Resolution window: resolved within 24 hours after the index timestamp.",
-      "",
-      "---",
-      "_Language: en_",
     ].join("\n");
 
     expect(
@@ -86,7 +83,8 @@ describe("buildResolutionDescriptionMarkdown", () => {
     expect(markdown).toContain(
       "resolved within 24 hours after the index timestamp 2026-12-14T14:00:00Z",
     );
-    expect(markdown).toContain("_Language: en_");
+    expect(markdown).not.toContain("_Language:");
+    expect(markdown).not.toMatch(/\n---\n/);
 
     // Section ordering is fixed.
     const summaryIdx = markdown.indexOf("## Summary");
@@ -212,9 +210,6 @@ describe("compactResolutionDescriptionMarkdown", () => {
       "",
       "## Additional Information",
       "Resolved within 24 hours after the index timestamp.",
-      "",
-      "---",
-      "_Language: en_",
     ].join("\n");
 
     const compact = compactResolutionDescriptionMarkdown(markdown);
@@ -223,19 +218,19 @@ describe("compactResolutionDescriptionMarkdown", () => {
     expect(compact).toContain("\\n## Criteria");
     expect(compact).toContain("\\n## Resolution Source");
     expect(compact).toContain('\\"Close\\"');
-    expect(compact.endsWith("\\n_Language: en_")).toBe(true);
+    expect(compact.endsWith("Resolved within 24 hours after the index timestamp.")).toBe(true);
     expect(compact.startsWith("## Summary")).toBe(true);
   });
 
   it("collapses multiple blank lines and trims surrounding whitespace", () => {
     const markdown =
-      "\n\n## Summary\nA.\n\n\n\n## Criteria\nB.\n\n## Resolution Source\nC.\n\n## Additional Information\nD.\n\n---\n_Language: en_\n\n";
+      "\n\n## Summary\nA.\n\n\n\n## Criteria\nB.\n\n## Resolution Source\nC.\n\n## Additional Information\nD.\n\n";
     const compact = compactResolutionDescriptionMarkdown(markdown);
 
     // Exactly one \n\n between sections, never \n\n\n.
     expect(compact).not.toMatch(/\\n\\n\\n/);
     expect(compact.startsWith("## Summary")).toBe(true);
-    expect(compact.endsWith("_Language: en_")).toBe(true);
+    expect(compact.endsWith("D.")).toBe(true);
   });
 
   it("returns a JSON-safe string that round-trips back to the standard markdown", () => {
