@@ -306,9 +306,6 @@ DESCRIPTION MARKDOWN TEMPLATE (four fixed H2 sections, in this exact order — t
 ## Additional Information
 <a Markdown bulleted list — one item per line, each line starting with "- " — covering edge cases and nuances the Criteria section does not cover: source delay, tie, outcome impossible, event rescheduled / cancelled, source unavailable, late corrections, scope limitations, the resolution window (e.g. "Resolution window: resolved within 24 hours after the index timestamp"). EACH BULLET MUST BE A SINGLE SUCCINCT SENTENCE ending in a period — no run-ons, no nested lists, no prose paragraphs, no introductory line before the bullets. Map each edge case to a named outcome from the outcomes array when applicable.>
 
----
-_Language: <ISO 639-1 code>_
-
 DRAFT:
 ${draftContent}
 
