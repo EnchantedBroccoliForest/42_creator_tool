@@ -15,7 +15,6 @@ import {
   buildRoutingFocusBlock,
   buildFinalizePrompt,
   buildEarlyResolutionPrompt,
-  buildIdeatePrompt,
 } from './constants/prompts';
 import { queryModel } from './api/openrouter';
 import { extractClaims } from './pipeline/extractClaims';
@@ -192,145 +191,6 @@ function SourceUrlLink({ url }) {
   return link || <code>{url}</code>;
 }
 
-// Parse the Ideate stage output into discrete ideas. The prompt asks the
-// model to number ideas `1.`, `2.`, ... and include a `**Title**` field for
-// each, so we split on top-level numbered starts and best-effort extract the
-// title from each block. The trailing "themes / follow-up" note (if any) is
-// captured as a postamble so it isn't absorbed into the last idea.
-function parseIdeateContent(rawText, t) {
-  if (!rawText || typeof rawText !== 'string') {
-    return { preamble: '', ideas: [], postamble: '' };
-  }
-  const lines = rawText.split('\n');
-  const preambleLines = [];
-  const ideas = [];
-  let current = null;
-
-  for (const line of lines) {
-    const startMatch = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
-    if (startMatch) {
-      if (current) ideas.push(current);
-      current = { number: Number(startMatch[1]), lines: [line] };
-      continue;
-    }
-    if (current) {
-      current.lines.push(line);
-    } else {
-      preambleLines.push(line);
-    }
-  }
-  if (current) ideas.push(current);
-
-  // Detach a trailing "themes / follow-up" paragraph from the last idea if
-  // it looks like a standalone note (separated by a blank line, not indented,
-  // and not one of the known Idea sub-fields). This keeps the button
-  // association clean when the LLM ends with a summary sentence.
-  let postamble = '';
-  if (ideas.length > 0) {
-    const last = ideas[ideas.length - 1];
-    let splitAt = -1;
-    for (let i = last.lines.length - 1; i > 0; i--) {
-      const prev = last.lines[i - 1];
-      const curr = last.lines[i];
-      const isBlank = prev.trim() === '';
-      const isTopLevelProse =
-        curr.trim() !== '' &&
-        !/^\s/.test(curr) &&
-        !/^\s*[-*]\s/.test(curr) &&
-        !/\*\*(Title|Outcome Set|Why|Resolvability|Suggested timeframe)/i.test(curr);
-      if (isBlank && isTopLevelProse) {
-        splitAt = i;
-        break;
-      }
-    }
-    if (splitAt > 0) {
-      const tail = last.lines.slice(splitAt);
-      last.lines = last.lines.slice(0, splitAt);
-      postamble = tail.join('\n').trim();
-    }
-  }
-
-  const parsedIdeas = ideas.map((idea) => {
-    const rawText = idea.lines.join('\n');
-    const { title, rest } = extractIdeaTitleAndRest(rawText, idea.number, t);
-    return {
-      number: idea.number,
-      rawText,
-      title,
-      rest,
-    };
-  });
-
-  return {
-    preamble: preambleLines.join('\n').trim(),
-    ideas: parsedIdeas,
-    postamble,
-  };
-}
-
-// Extract a clean title string and the "rest" of the idea body (everything
-// except the title line), for populating Draft Market's Reference field.
-function extractIdeaTitleAndRest(ideaText, number, t) {
-  const lines = ideaText.split('\n');
-
-  // Strategy 1: find an explicit "**Title**" label anywhere in the idea.
-  let titleLineIdx = -1;
-  let title = '';
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/\*\*\s*Title\s*\*\*\s*[—:-]*\s*(.+)$/i);
-    if (m) {
-      titleLineIdx = i;
-      title = m[1];
-      break;
-    }
-  }
-
-  // Strategy 2: fall back to the first line after the "N." prefix.
-  if (titleLineIdx === -1 && lines.length > 0) {
-    const firstLineMatch = lines[0].match(/^\s*\d+[.)]\s+(.+)$/);
-    if (firstLineMatch) {
-      titleLineIdx = 0;
-      title = firstLineMatch[1];
-    }
-  }
-
-  // Clean up the title: strip markdown bold, leading label prefixes, and
-  // surrounding quotes.
-  title = (title || '')
-    .replace(/\*\*/g, '')
-    .replace(/^\s*Title\s*[:—-]\s*/i, '')
-    .replace(/^["'`\u201C\u2018]+|["'`\u201D\u2019]+$/g, '')
-    .trim();
-
-  // Build the "rest" by removing just the title line (or the title segment
-  // from the first line if the title came from strategy 2).
-  let rest;
-  if (titleLineIdx === 0) {
-    // The title was on the first line, possibly preceded by "N.".
-    // Drop the whole first line so we don't duplicate the title in the
-    // Reference field.
-    rest = lines.slice(1).join('\n');
-  } else if (titleLineIdx > 0) {
-    // Preserve everything except the dedicated title line.
-    rest = [...lines.slice(0, titleLineIdx), ...lines.slice(titleLineIdx + 1)]
-      .join('\n');
-  } else {
-    // Could not find a title at all — keep the body as-is (minus the
-    // leading number so it reads cleanly).
-    rest = ideaText.replace(/^\s*\d+[.)]\s*/, '');
-  }
-
-  return { title: title || t('ideas.fallbackTitle', { n: number }), rest: rest.trim() };
-}
-
-// Build the text that goes into the Draft Market "References" field when an
-// idea's arrow button is clicked. Includes the idea's context (Outcome Set,
-// Why it's interesting, Resolvability, Suggested timeframe) so the drafting
-// model has the same framing the ideator used.
-function buildReferenceFromIdea(idea) {
-  return (idea.rest || idea.rawText || '').trim();
-}
-
 function buildReviewConfig(reviewModels, aggregationProtocol) {
   return {
     reviewModels: [...(reviewModels || [])],
@@ -424,10 +284,6 @@ function App() {
     aggregationProtocol,
     humanReviewInput,
     pastedDraft,
-    ideatingInput,
-    ideatingReferences,
-    ideatingModel,
-    ideatingContent,
     loading,
     loadingMeta,
     error,
@@ -1219,31 +1075,6 @@ function App() {
     });
   };
 
-  // --- Ideating: generate market ideas from vague user direction ---
-  const handleIdeate = async () => {
-    dispatch({ type: 'START_LOADING', phase: 'ideate', models: [getModelName(ideatingModel)] });
-    try {
-      const result = await queryModel(ideatingModel, [
-        { role: 'system', content: getSystemPrompt('ideator') },
-        { role: 'user', content: buildIdeatePrompt(ideatingInput, ideatingReferences) },
-      ]);
-      dispatch({ type: 'IDEATE_SUCCESS', content: result.content });
-    } catch (err) {
-      dispatch({ type: 'SET_ERROR', error: err.message || t('error.ideate') });
-    }
-  };
-
-  // Handoff from Ideate → Draft Market: switch modes and prefill the
-  // Question and References fields from the chosen idea. The user can then
-  // pick dates / tweak the question and hit Draft Market.
-  const handleUseIdeaForDraft = (idea) => {
-    dispatch({
-      type: 'USE_IDEA_FOR_DRAFT',
-      question: idea.title || '',
-      references: buildReferenceFromIdea(idea),
-    });
-  };
-
   const handleReset = () => dispatch({ type: 'RESET' });
 
   // --- Run trace: export current run as JSON download ---
@@ -1329,28 +1160,6 @@ function App() {
               </div>
             </div>
             <div className="panel-body">
-              {/* Mode Toggle */}
-              <div className="mode-toggle">
-                <button
-                  type="button"
-                  className={`mode-toggle__btn ${mode === 'ideating' ? 'mode-toggle__btn--active' : ''}`}
-                  onClick={() => dispatch({ type: 'SET_FIELD', field: 'mode', value: 'ideating' })}
-                  disabled={anyLoading}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6" /><path d="M10 22h4" /><path d="M12 2a7 7 0 0 0-4 12.74V17h8v-2.26A7 7 0 0 0 12 2z" /></svg>
-                  {t('mode.ideating')}
-                </button>
-                <button
-                  type="button"
-                  className={`mode-toggle__btn ${mode === 'draft' ? 'mode-toggle__btn--active' : ''}`}
-                  onClick={() => dispatch({ type: 'SET_FIELD', field: 'mode', value: 'draft' })}
-                  disabled={anyLoading}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
-                  {t('mode.draftMarket')}
-                </button>
-              </div>
-
               {mode === 'draft' && (
               <div className="market-form">
                 <div className="form-group">
@@ -1589,159 +1398,13 @@ function App() {
               </div>
               )}
 
-              {mode === 'ideating' && (
-              <div className="market-form">
-                <div className="form-group">
-                  <label htmlFor="ideatingInput">{t('form.vagueDirection')}</label>
-                  <textarea
-                    id="ideatingInput"
-                    value={ideatingInput}
-                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'ideatingInput', value: e.target.value })}
-                    placeholder={t('form.vagueDirectionPlaceholder')}
-                    className="input textarea textarea--tall"
-                    disabled={loading === 'ideate'}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="ideatingReferences">
-                    {t('form.references')} <span className="label-hint">{t('form.optional')}</span>
-                  </label>
-                  <textarea
-                    id="ideatingReferences"
-                    value={ideatingReferences}
-                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'ideatingReferences', value: e.target.value })}
-                    placeholder={t('form.ideatingReferencesPlaceholder')}
-                    className="input textarea"
-                    disabled={loading === 'ideate'}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="ideatingModel">{t('form.ideationModel')}</label>
-                  <ModelSelect
-                    id="ideatingModel"
-                    value={ideatingModel}
-                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'ideatingModel', value: e.target.value })}
-                    className="input"
-                    disabled={loading === 'ideate'}
-                  />
-                </div>
-
-                <ErrorMessage message={error} onDismiss={handleDismissError} dismissLabel={t('common.dismiss')} />
-
-                <button
-                  type="button"
-                  className="draft-button"
-                  disabled={loading === 'ideate' || !ideatingInput.trim()}
-                  onClick={handleIdeate}
-                >
-                  {loading === 'ideate' ? (
-                    <>
-                      <span className="spinner" />
-                      {t('form.ideating')}
-                    </>
-                  ) : (
-                    <>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6" /><path d="M10 22h4" /><path d="M12 2a7 7 0 0 0-4 12.74V17h8v-2.26A7 7 0 0 0 12 2z" /></svg>
-                      {t('form.generateIdeas')}
-                    </>
-                  )}
-                </button>
-
-                {loading === 'ideate' && (
-                  <Enter className="draft-output-section">
-                    <LLMLoadingState phase="ideate" meta={loadingMeta} />
-                  </Enter>
-                )}
-
-                {ideatingContent && loading !== 'ideate' && (
-                  <Enter className="draft-output-section">
-                    <div className="col-panel col-panel--draft">
-                      <div className="col-panel-header">
-                        <h2>{t('ideas.heading')}</h2>
-                        <div className="col-panel-actions">
-                          <span className="model-badge" data-tooltip={getModelName(ideatingModel)} tabIndex={0} role="img" aria-label={t('common.modelAria', { name: getModelName(ideatingModel) })}>{getModelAbbrev(ideatingModel)}</span>
-                          <button
-                            type="button"
-                            className="copy-btn"
-                            onClick={handleIdeate}
-                            disabled={!ideatingInput.trim() || loading === 'ideate'}
-                            title={t('ideas.refreshTitle')}
-                            aria-label={t('ideas.refreshAria')}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-1px', marginRight: 4 }}><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" /><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" /></svg>
-                            {t('ideas.refresh')}
-                          </button>
-                          <button
-                            className={`copy-btn ${copiedId === 'ideating' ? 'copy-btn--copied' : ''}`}
-                            onClick={() => handleCopy(ideatingContent, 'ideating')}
-                          >
-                            {copiedId === 'ideating' ? t('common.copied') : t('common.copy')}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="content-box content-box--rich">
-                        {(() => {
-                          const { preamble, ideas, postamble } = parseIdeateContent(ideatingContent, t);
-                          if (ideas.length === 0) {
-                            // Fallback: the LLM didn't number its output, so
-                            // render the raw content without per-idea buttons.
-                            return renderContent(ideatingContent);
-                          }
-                          return (
-                            <>
-                              {preamble && (
-                                <div className="ideate-preamble">{renderContent(preamble)}</div>
-                              )}
-                              <div className="ideate-ideas">
-                                {ideas.map((idea, idx) => (
-                                  <div
-                                    key={`idea-${idx}-${idea.number}`}
-                                    className="ideate-idea stagger-item"
-                                    style={{ '--stagger': Math.min(idx, 8) }}
-                                  >
-                                    <div className="ideate-idea__header">
-                                      <span className="ideate-idea__number">{idea.number}.</span>
-                                      <span className="ideate-idea__title">{idea.title}</span>
-                                      <button
-                                        type="button"
-                                        className="ideate-idea__use-btn"
-                                        onClick={() => handleUseIdeaForDraft(idea)}
-                                        title={t('ideas.useTitle')}
-                                        aria-label={t('ideas.useAria', { n: idea.number })}
-                                      >
-                                        &rarr;
-                                      </button>
-                                    </div>
-                                    {idea.rest && (
-                                      <div className="ideate-idea__body">
-                                        {renderContent(idea.rest)}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                              {postamble && (
-                                <div className="ideate-postamble">{renderContent(postamble)}</div>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </Enter>
-                )}
-              </div>
-              )}
-
               {/* Draft output — stays in Panel 1 right under the button */}
-              {mode !== 'ideating' && loading === 'draft' && (
+              {loading === 'draft' && (
                 <Enter className="draft-output-section">
                   <LLMLoadingState phase="draft" meta={loadingMeta} />
                 </Enter>
               )}
-              {mode !== 'ideating' && draftContent && (
+              {draftContent && (
                 <Enter className="draft-output-section" ref={draftOutputRef}>
                   <div className={`col-panel col-panel--draft ${draftJustUpdated ? 'col-panel--just-updated' : ''}`}>
                     <div className="col-panel-header">

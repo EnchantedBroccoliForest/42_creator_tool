@@ -21,7 +21,7 @@ function getTodayIsoDate() {
 export function createInitialState() {
   return {
   // Mode
-  mode: 'draft', // 'draft' | 'review' | 'ideating'
+  mode: 'draft', // 'draft' | 'review'
 
   // Input
   question: '',
@@ -47,14 +47,8 @@ export function createInitialState() {
   // 'judge' makes one extra LLM call using the first review model.
   aggregationProtocol: 'majority',
 
-  // Ideating
-  ideatingInput: '',
-  ideatingReferences: '',
-  ideatingModel: DEFAULT_DRAFT_MODEL,
-  ideatingContent: null,
-
   // Processing
-  loading: null, // null | 'draft' | 'review' | 'update' | 'accept' | 'early-resolution' | 'source-accessibility' | 'ideate'
+  loading: null, // null | 'draft' | 'review' | 'update' | 'accept' | 'early-resolution' | 'source-accessibility'
   loadingMeta: null, // { models: string[], startTime: number } | null
   error: null,
   dateError: null,
@@ -286,33 +280,6 @@ export function reducer(state, action) {
 
     case 'FINALIZE_SUCCESS':
       return { ...state, loading: null, loadingMeta: null, finalContent: action.content };
-
-    case 'IDEATE_SUCCESS':
-      return { ...state, loading: null, loadingMeta: null, ideatingContent: action.content };
-
-    case 'USE_IDEA_FOR_DRAFT':
-      // Switch to Draft Market mode and populate the question, references,
-      // source-of-truth field, and dates from an ideate suggestion so the user can immediately
-      // refine and draft. Dates are derived from the idea's suggested
-      // timeframe (start defaults to tomorrow, end from the timeframe text).
-      // Use ?? (not ||) so that missing payload dates preserve any
-      // user-entered values rather than silently wiping them to ''.
-      return {
-        ...state,
-        mode: 'draft',
-        question: action.question || '',
-        references: action.references || '',
-        sourceOfTruth: action.sourceOfTruth ?? state.sourceOfTruth,
-        startDate: action.startDate ?? state.startDate,
-        endDate: action.endDate ?? state.endDate,
-        dateError: null,
-        touchedFields: {
-          question: false,
-          startDate: false,
-          endDate: false,
-        },
-        error: null,
-      };
 
     case 'START_EARLY_RESOLUTION':
       return {

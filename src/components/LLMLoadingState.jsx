@@ -8,7 +8,6 @@ const PHASE_KEYS = {
   update: { label: 'loading.updateLabel', messages: ['loading.updateMsg1', 'loading.updateMsg2', 'loading.updateMsg3', 'loading.updateMsg4'] },
   accept: { label: 'loading.acceptLabel', messages: ['loading.acceptMsg1', 'loading.acceptMsg2', 'loading.acceptMsg3', 'loading.acceptMsg4'] },
   'early-resolution': { label: 'loading.earlyResLabel', messages: ['loading.earlyResMsg1', 'loading.earlyResMsg2', 'loading.earlyResMsg3', 'loading.earlyResMsg4'] },
-  ideate: { label: 'loading.ideateLabel', messages: ['loading.ideateMsg1', 'loading.ideateMsg2', 'loading.ideateMsg3', 'loading.ideateMsg4'] },
 };
 
 function formatElapsed(ms) {
