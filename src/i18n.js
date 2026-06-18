@@ -46,7 +46,6 @@ const EN = {
   "intro.enter": "Enter the tool",
 
   // Mode toggle
-  "mode.ideating": "Ideating",
   "mode.draftMarket": "Draft Market",
 
   // Draft form
@@ -84,25 +83,6 @@ const EN = {
   "form.pasteExistingDraftPlaceholder":
     "Paste your existing market draft here...",
   "form.submitForReview": "Submit for Review",
-
-  // Ideating form
-  "form.vagueDirection": "Vague Direction",
-  "form.vagueDirectionPlaceholder":
-    "Describe a rough area of interest — e.g., 'esports finals season 2026', 'upcoming awards races', 'memecoin narratives'. The model will brainstorm 42.space-shaped multi-outcome market ideas.",
-  "form.ideatingReferencesPlaceholder":
-    "Paste links, datasets, articles, or notes for the ideator to ground its suggestions in. References are weighted FAR above the vague direction — every idea will be anchored to this material.",
-  "form.ideationModel": "Ideation Model",
-  "form.ideating": "Ideating...",
-  "form.generateIdeas": "Generate Ideas",
-
-  // Ideas
-  "ideas.heading": "Market Ideas",
-  "ideas.refresh": "Refresh",
-  "ideas.refreshTitle": "Generate a fresh batch of 3 ideas",
-  "ideas.refreshAria": "Refresh ideas",
-  "ideas.useTitle": "Use this idea in Draft Market",
-  "ideas.useAria": "Use idea {n} in Draft Market",
-  "ideas.fallbackTitle": "Idea {n}",
 
   // Draft output
   "draft.heading": "Draft",
@@ -362,11 +342,6 @@ const EN = {
   "loading.earlyResMsg2": "Evaluating scenarios for early certainty...",
   "loading.earlyResMsg3": "Assessing risk level...",
   "loading.earlyResMsg4": "Compiling analysis...",
-  "loading.ideateLabel": "Brainstorming market ideas",
-  "loading.ideateMsg1": "Researching the topic area...",
-  "loading.ideateMsg2": "Scanning for catalysts and trends...",
-  "loading.ideateMsg3": "Generating candidate questions...",
-  "loading.ideateMsg4": "Curating the most interesting ideas...",
   // Validation (codes returned by util/draftInput.js)
   "validation.question.required": "Market question is required.",
   "validation.startDate.required": "Start date is required.",
@@ -398,7 +373,6 @@ const EN = {
   "error.earlyResolution": "Failed to analyze early resolution risk",
   "error.sourceAccessibility": "Failed to check source accessibility",
   "error.finalize": "Failed to finalize market",
-  "error.ideate": "Failed to generate market ideas",
   "error.exportRun": "Failed to export run: {message}",
   "error.importInvalid": "Import failed: file is not a valid Run JSON.",
   "error.importGeneric": "Import failed: {message}",
@@ -438,7 +412,6 @@ const ZH = {
   "intro.enter": "进入工具",
 
   // Mode toggle
-  "mode.ideating": "构思",
   "mode.draftMarket": "起草市场",
 
   // Draft form
@@ -473,25 +446,6 @@ const ZH = {
   "form.pasteExistingDraft": "粘贴现有草稿",
   "form.pasteExistingDraftPlaceholder": "在此粘贴你现有的市场草稿……",
   "form.submitForReview": "提交审阅",
-
-  // Ideating form
-  "form.vagueDirection": "模糊方向",
-  "form.vagueDirectionPlaceholder":
-    "描述一个大致的兴趣方向 — 例如:'2026 电竞总决赛季'、'即将到来的颁奖季'、'Meme 币叙事'。模型将围绕 42.space 形态构思多结果市场创意。",
-  "form.ideatingReferencesPlaceholder":
-    "粘贴链接、数据集、文章或备注,作为构思的依据。参考资料的权重远高于模糊方向——每个创意都将以这些材料为锚点。",
-  "form.ideationModel": "构思模型",
-  "form.ideating": "构思中……",
-  "form.generateIdeas": "生成创意",
-
-  // Ideas
-  "ideas.heading": "市场创意",
-  "ideas.refresh": "刷新",
-  "ideas.refreshTitle": "生成新一批 3 个创意",
-  "ideas.refreshAria": "刷新创意",
-  "ideas.useTitle": "在「起草市场」中使用此创意",
-  "ideas.useAria": "在「起草市场」中使用创意 {n}",
-  "ideas.fallbackTitle": "创意 {n}",
 
   // Draft output
   "draft.heading": "草稿",
@@ -744,11 +698,6 @@ const ZH = {
   "loading.earlyResMsg2": "正在评估提前确定的情形……",
   "loading.earlyResMsg3": "正在评估风险等级……",
   "loading.earlyResMsg4": "正在汇编分析……",
-  "loading.ideateLabel": "正在头脑风暴市场创意",
-  "loading.ideateMsg1": "正在研究主题领域……",
-  "loading.ideateMsg2": "正在扫描催化剂与趋势……",
-  "loading.ideateMsg3": "正在生成候选问题……",
-  "loading.ideateMsg4": "正在精选最有意思的创意……",
   // Validation (codes returned by util/draftInput.js)
   "validation.question.required": "请填写市场问题。",
   "validation.startDate.required": "请填写开始日期。",
@@ -779,7 +728,6 @@ const ZH = {
   "error.earlyResolution": "分析提前结算风险失败",
   "error.sourceAccessibility": "检查数据源可访问性失败",
   "error.finalize": "定稿市场失败",
-  "error.ideate": "生成市场创意失败",
   "error.exportRun": "导出运行失败:{message}",
   "error.importInvalid": "导入失败:文件不是有效的运行 JSON。",
   "error.importGeneric": "导入失败:{message}",

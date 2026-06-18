@@ -4,7 +4,6 @@
  *
  * Commands:
  *   draft      Run the full pipeline and print a Run artifact
- *   ideate     Brainstorm market ideas
  *   validate   Re-run claim extraction + verification on an existing Run
  *
  * Usage:
@@ -22,7 +21,6 @@ pm-tools — prediction market drafting pipeline
 
 COMMANDS
   draft      Run the full pipeline (draft → review → update → finalize)
-  ideate     Brainstorm market ideas from a direction prompt
   validate   Re-run claim extraction + verification on an existing Run
   report     Re-render an existing Run JSON (from stdin or --input) into the
              narrative report. No network, no LLM calls.
@@ -53,10 +51,6 @@ DRAFT FLAGS
   --xapi-enrich      Enrich references with X/Twitter data via xAPI
   --timeout          Max seconds before aborting (default: 300)
 
-IDEATE FLAGS
-  --direction, -d    Direction/topic for brainstorming (required)
-  --drafter          OpenRouter model ID
-
 ENVIRONMENT
   OPENROUTER_API_KEY         API key (preferred)
   VITE_OPENROUTER_API_KEY    API key (Vite fallback)
@@ -74,7 +68,6 @@ EXAMPLES
   cat run.json | npx pm-tools report --level report
   cat run.json | npx pm-tools report --level report --min-severity blocking
   cat run.json | npx pm-tools report --format html --level full > report.html
-  npx pm-tools ideate -d "AI regulation in the EU"
 `;
 
 // ----------------------------------------------------------- arg parsing
@@ -105,8 +98,6 @@ function parseCliArgs() {
       'xapi-enrich': { type: 'boolean', default: false },
       timeout: { type: 'string' },
       help: { type: 'boolean', short: 'h', default: false },
-      // ideate
-      direction: { type: 'string', short: 'd' },
     },
   });
   return { values, command: positionals[0] || null };
@@ -294,34 +285,6 @@ async function cmdDraft(values, stdinConfig) {
   process.exit(1); // blocked or partial
 }
 
-// ---------------------------------------------------- command: ideate
-
-async function cmdIdeate(values) {
-  const { queryModel } = await import('../src/api/openrouter.js');
-  const { getSystemPrompt, buildIdeatePrompt } = await import('../src/constants/prompts.js');
-  const { DEFAULT_DRAFT_MODEL } = await import('../src/defaults.js');
-
-  const direction = values.direction || values.question;
-  if (!direction) {
-    process.stderr.write('Error: --direction (-d) is required for ideate.\n\n');
-    process.stderr.write(USAGE);
-    process.exit(2);
-  }
-
-  const model = values.drafter || DEFAULT_DRAFT_MODEL;
-  if (values.verbose) {
-    process.stderr.write(`[ideate] model=${model}\n`);
-  }
-
-  const result = await queryModel(model, [
-    { role: 'system', content: getSystemPrompt('ideator') },
-    { role: 'user', content: buildIdeatePrompt(direction) },
-  ]);
-
-  process.stdout.write(result.content + '\n');
-  process.exit(0);
-}
-
 // ----------------------------------------------------- command: report
 
 async function cmdReport(values) {
@@ -467,9 +430,6 @@ async function main() {
   switch (command) {
     case 'draft':
       await cmdDraft(values, stdinConfig);
-      break;
-    case 'ideate':
-      await cmdIdeate(values);
       break;
     case 'validate':
       await cmdValidate(values);

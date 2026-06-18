@@ -106,7 +106,6 @@ export function createMockQueryModel(fixture, { onWarn } = {}) {
     earlyResolutionAnalyst: 0,
     finalizer: 0,
     reviewer: 0,
-    ideator: 0,
     unknown: 0,
   };
   const missingFields = new Set();
@@ -219,10 +218,6 @@ export function createMockQueryModel(fixture, { onWarn } = {}) {
         // trivial deliberation string so the pipeline doesn't crash;
         // the eval harness drives the structured path regardless.
         return buildResult(mock.deliberation || 'Deliberation: (mock)', messages);
-      }
-
-      case 'ideator': {
-        return buildResult(mock.ideation || '(mock ideator output)', messages);
       }
 
       case 'unknown':
