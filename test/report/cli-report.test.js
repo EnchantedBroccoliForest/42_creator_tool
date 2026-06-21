@@ -119,8 +119,6 @@ describe('pm-tools report — flag validation', () => {
     // offline (the API-key gate is bypassed for this subcommand only).
     const env = { ...process.env };
     delete env.OPENROUTER_API_KEY;
-    delete env.VITE_OPENROUTER_API_KEY;
-    delete env.VITE_OPENAI_API_KEY;
     const result = spawnSync(process.execPath, [CLI, 'report', '--input', FIXTURE, '--level', 'headline'], {
       encoding: 'utf8',
       env,

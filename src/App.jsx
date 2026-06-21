@@ -51,6 +51,7 @@ import ModelSelect from './components/ModelSelect';
 import AmbientModeToggle from './components/AmbientModeToggle';
 import LanguageToggle from './components/LanguageToggle';
 import Intro from './components/Intro';
+import ApiKeyGate from './components/ApiKeyGate';
 import { useLanguage } from './hooks/useLanguage';
 
 /** Lightweight markdown-ish rendering: **bold**, bullet lists, numbered lists */
@@ -1301,6 +1302,7 @@ function App() {
 
   return (
     <div className={`App ${ambientConfig.classes.join(' ')}`}>
+      <ApiKeyGate />
       <Intro />
       {/* Floating header controls. */}
       <div className="top-right-controls">

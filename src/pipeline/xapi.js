@@ -26,18 +26,50 @@ const X_URL_REGEX =
 
 const AT_MENTION_REGEX = /(?:^|\s)@([A-Za-z0-9_]{1,15})\b/g;
 
-// ------------------------------------------------------------------- env
+// ------------------------------------------------------------------- key
 
-function readEnv(key) {
-  const viteEnv = import.meta.env;
-  if (viteEnv && viteEnv[key] != null) return viteEnv[key];
-  if (typeof process !== 'undefined' && process.env?.[key] != null) {
-    return process.env[key];
-  }
-  return undefined;
+// Key resolution:
+//   - Browser: user-supplied via the optional <ApiKeyGate> xAPI field, held
+//     in module-level memory only. No env vars are read at build time so a
+//     stray .env (e.g. VITE_XAPI_KEY=...) can never leak into the public
+//     bundle.
+//   - Node (CLI, eval, HTTP service): XAPI_KEY env var, with a fallback to
+//     ~/.xapi/config.json. No VITE_-prefixed fallbacks anywhere.
+
+function isBrowser() {
+  return typeof window !== 'undefined';
 }
 
-let _cachedKey = undefined;
+let _userXapiKey = null;
+const _xapiKeyListeners = new Set();
+
+/**
+ * Set the user-supplied xAPI key for the browser session. Called by the
+ * <ApiKeyGate> UI. Held in memory only; never persisted.
+ */
+export function setUserXapiKey(key) {
+  _userXapiKey = typeof key === 'string' && key.trim() !== '' ? key.trim() : null;
+  for (const fn of _xapiKeyListeners) fn();
+}
+
+/** Forget the user-supplied xAPI key. */
+export function clearUserXapiKey() {
+  _userXapiKey = null;
+  for (const fn of _xapiKeyListeners) fn();
+}
+
+/** True when an xAPI key is available (browser memory or Node env/file). */
+export function hasXapiKey() {
+  return readXapiKey() !== null;
+}
+
+/** Subscribe to xAPI key changes (used by useApiKey via useSyncExternalStore). */
+export function subscribeXapiKey(listener) {
+  _xapiKeyListeners.add(listener);
+  return () => _xapiKeyListeners.delete(listener);
+}
+
+let _cachedNodeKey = undefined;
 
 // Lazy reader for ~/.xapi/config.json (CLI / Node only).
 // Returns the apiKey or null. Caches the result after first read.
@@ -65,14 +97,17 @@ function readConfigFile() {
 }
 
 function readXapiKey() {
-  if (_cachedKey !== undefined) return _cachedKey;
-  const fromEnv = readEnv('XAPI_KEY');
-  if (fromEnv) { _cachedKey = fromEnv; return fromEnv; }
-  const fromVite = readEnv('VITE_XAPI_KEY');
-  if (fromVite) { _cachedKey = fromVite; return fromVite; }
+  if (isBrowser()) {
+    return _userXapiKey;
+  }
+  // Node only. We deliberately do NOT read import.meta.env so a browser
+  // bundle never embeds an xAPI key from a .env file.
+  if (_cachedNodeKey !== undefined) return _cachedNodeKey;
+  const fromEnv = typeof process !== 'undefined' ? process.env?.XAPI_KEY : undefined;
+  if (fromEnv) { _cachedNodeKey = fromEnv; return fromEnv; }
   const fromFile = readConfigFile();
-  if (fromFile) { _cachedKey = fromFile; return fromFile; }
-  _cachedKey = null;
+  if (fromFile) { _cachedNodeKey = fromFile; return fromFile; }
+  _cachedNodeKey = null;
   return null;
 }
 
@@ -81,8 +116,9 @@ function readXapiKey() {
  * environment variables across multiple cases in the same process.
  */
 export function __resetXapiKeyCacheForTests() {
-  _cachedKey = undefined;
+  _cachedNodeKey = undefined;
   _configFileKey = undefined;
+  _userXapiKey = null;
 }
 
 // ---------------------------------------------------------------- parsing

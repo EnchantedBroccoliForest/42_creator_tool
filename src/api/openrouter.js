@@ -3,52 +3,72 @@ const MODELS_URL = 'https://openrouter.ai/api/v1/models';
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [1000, 2000, 4000]; // exponential backoff
 
-// API key precedence (first match wins):
-//   1. OPENROUTER_API_KEY       — CLI / server / headless use (no VITE_ prefix)
-//   2. VITE_OPENROUTER_API_KEY  — Vite dev server (browser)
-//   3. VITE_OPENAI_API_KEY      — legacy fallback for existing deployments
+// API key resolution:
+//   - Browser: the user enters their own OpenRouter API key via the
+//     <ApiKeyGate> UI; we hold it in module-level memory only. No env vars
+//     are read at build time, so a stray .env can never get inlined into the
+//     public bundle. No localStorage / cookie either — refreshing the page
+//     clears it.
+//   - Node (CLI, eval harness, HTTP service): reads OPENROUTER_API_KEY from
+//     process.env. No VITE_-prefixed fallbacks; the browser path never has
+//     access to those anyway, and stripping them avoids accidentally
+//     reintroducing the build-time inlining bug.
 const CLI_API_KEY_ENV = 'OPENROUTER_API_KEY';
-const API_KEY_ENV = 'VITE_OPENROUTER_API_KEY';
-const LEGACY_API_KEY_ENV = 'VITE_OPENAI_API_KEY';
 
-// Pull env variables from whatever environment we happen to be running in.
-// In Vite (browser) that's `import.meta.env`; when this module is imported
-// from Node (eval harness, CLI tools) `import.meta.env` is undefined and we
-// fall back to `process.env`.
-function readEnv(key) {
-  const viteEnv = import.meta.env;
-  if (viteEnv && viteEnv[key] != null) return viteEnv[key];
-  if (typeof process !== 'undefined' && process.env?.[key] != null) {
-    return process.env[key];
-  }
-  return undefined;
+// User-supplied browser key. Never persisted. Cleared on reload by virtue of
+// living only in memory.
+let _userApiKey = null;
+const _keyListeners = new Set();
+
+function isBrowser() {
+  return typeof window !== 'undefined';
+}
+
+/**
+ * Set the user-supplied OpenRouter API key for the browser session. Only
+ * called by the <ApiKeyGate> UI component. The key is held in memory only
+ * and never written to storage.
+ */
+export function setUserApiKey(key) {
+  _userApiKey = typeof key === 'string' && key.trim() !== '' ? key.trim() : null;
+  for (const fn of _keyListeners) fn();
+}
+
+/** Forget the user-supplied API key (e.g. so they can paste a new one). */
+export function clearUserApiKey() {
+  _userApiKey = null;
+  for (const fn of _keyListeners) fn();
+}
+
+/**
+ * In the browser, returns true once the user has supplied a key via the gate
+ * UI. In Node, returns true if OPENROUTER_API_KEY is set in process.env.
+ */
+export function hasApiKey() {
+  return readConfiguredApiKey() !== null;
+}
+
+/**
+ * Subscribe to changes in the user-supplied key. Returns an unsubscribe fn.
+ * The <useApiKey> hook wires this up to useSyncExternalStore so React
+ * components rerender when the key arrives or is cleared.
+ */
+export function subscribeApiKey(listener) {
+  _keyListeners.add(listener);
+  return () => _keyListeners.delete(listener);
 }
 
 function readConfiguredApiKey() {
-  // 1. OPENROUTER_API_KEY — preferred for CLI / server / headless use.
-  const cli = readEnv(CLI_API_KEY_ENV);
-  if (cli && cli !== 'YOUR_API_KEY_HERE') return cli;
-  // 2. VITE_OPENROUTER_API_KEY — Vite dev server (browser).
-  const primary = readEnv(API_KEY_ENV);
-  if (primary && primary !== 'YOUR_API_KEY_HERE') return primary;
-  // 3. VITE_OPENAI_API_KEY — legacy fallback.
-  const legacy = readEnv(LEGACY_API_KEY_ENV);
-  if (legacy && legacy !== 'YOUR_API_KEY_HERE') {
-    console.warn(
-      `[pm_tools] ${LEGACY_API_KEY_ENV} is deprecated; set ${API_KEY_ENV} instead.`
-    );
-    return legacy;
+  if (isBrowser()) {
+    return _userApiKey;
+  }
+  // Node only. We deliberately do NOT read import.meta.env here so that a
+  // browser bundle never embeds an API key from a .env file.
+  if (typeof process !== 'undefined' && process.env?.[CLI_API_KEY_ENV]) {
+    const v = process.env[CLI_API_KEY_ENV];
+    if (v && v !== 'YOUR_API_KEY_HERE') return v;
   }
   return null;
-}
-
-// Runtime warning if neither variable is configured. This runs once at module
-// load so the developer sees it in the browser console immediately, without
-// waiting for the first LLM call to fail.
-if (typeof window !== 'undefined' && readConfiguredApiKey() === null) {
-  console.warn(
-    `[pm_tools] No OpenRouter API key configured. Set ${API_KEY_ENV} in your environment (a .env file at the repo root works for local dev).`
-  );
 }
 
 // Referer header is only meaningful when running in a browser. In Node
@@ -64,8 +84,13 @@ function getRefererOrigin() {
 function getApiKey() {
   const apiKey = readConfiguredApiKey();
   if (!apiKey) {
+    if (isBrowser()) {
+      throw new Error(
+        'OpenRouter API key required. Paste your key into the prompt at the top of the page.'
+      );
+    }
     throw new Error(
-      `OpenRouter API key not configured. Please set ${API_KEY_ENV} in your environment.`
+      `OpenRouter API key not configured. Set ${CLI_API_KEY_ENV} in your environment.`
     );
   }
   return apiKey;
