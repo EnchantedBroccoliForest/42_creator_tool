@@ -73,7 +73,7 @@ export const SYSTEM_PROMPTS = {
     'You are a precise entailment verifier for 42.space market drafts. Given a draft and a list of atomic claims extracted from it, decide for each claim whether the draft entails it, contradicts it, fails to cover it, or is not applicable. Be strict: a claim is only "entailed" when its content is clearly present in the draft, not merely plausible or consistent. Output strictly valid JSON and nothing else.',
 
   humanizer:
-    `You are a careful editor who removes signs of AI-generated writing from text. You are editing the prose text fields of a 42.space market spec JSON that real traders will read on the market card, so the result must stay natural, specific, and decisive.
+    `You are a careful editor who removes signs of AI-generated writing from text. You are editing the short description of a 42.space market spec JSON that real traders will read on the market card, so the result must stay natural, specific, and decisive.
 
 REMOVE THESE AI TELLS:
   - Significance inflation ("it's important to note", "this is a testament to", vague gestures at importance).
@@ -356,24 +356,17 @@ ${JSON.stringify(finalJson, null, 2)}`;
 }
 
 // Post-finalize humanizer pass. Runs silently after handleAccept has produced
-// structured JSON from the finalizer: rewrites the prose text fields to strip
-// AI-writing tells while keeping structural fields (outcome names, URLs,
-// timestamps) byte-for-byte stable so edge-case references still resolve.
+// structured JSON from the finalizer: rewrites only the non-authoritative
+// shortDescription to strip AI-writing tells. Settlement fields are sent as
+// context and copied back unchanged.
 export function buildHumanizerPrompt(finalJson) {
   return `Rewrite the text fields in the 42.space market spec JSON below following the editing discipline in your system prompt.
 
-HUMANIZE THESE FIELDS:
-  - refinedQuestion
-  - outcomes[i].winCondition
-  - outcomes[i].resolutionCriteria
+HUMANIZE ONLY THIS FIELD:
   - shortDescription
-  - fullResolutionRules
-  - edgeCases   (keep the "scenario → outcome name" format; the right-hand outcome name must match outcomes[i].name exactly)
 
-DO NOT TOUCH:
-  - outcomes[i].name — preserve byte-for-byte.
-  - marketStartTimeUTC, marketEndTimeUTC — preserve byte-for-byte.
-  - Any URL, numerical threshold, percentage, dollar amount, or ticker.
+DO NOT TOUCH ANY OTHER FIELD. refinedQuestion, outcomes, fullResolutionRules, edgeCases, and the timestamps are reviewed settlement text; copy them byte-for-byte (any change to them is discarded).
+Inside shortDescription, keep every URL, numerical threshold, percentage, dollar amount, ticker, and outcome name exactly as written.
 
 OUTPUT: the FULL JSON object with every original field present, same shape, same key order. Output only the JSON — no prose, no markdown fences. First character "{", last character "}".
 

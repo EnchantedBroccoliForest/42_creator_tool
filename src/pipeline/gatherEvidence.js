@@ -174,10 +174,16 @@ export function harvestUrls({ references, sourceOfTruth, claims }) {
   }));
 }
 
+function isReadableErrorResponse(response) {
+  return typeof response?.status === 'number' && response.status >= 400;
+}
+
 /**
- * Attempt to resolve a single URL. Returns a boolean: true if the fetch
- * produced any kind of response (including an opaque CORS response) or
- * false if it failed with a network error or timeout.
+ * Attempt to resolve a single URL. Returns a boolean: false on a network
+ * error, a timeout, or a readable 4xx/5xx status (e.g. a 404 when running
+ * server-side). An opaque no-cors response (browser) carries no status, so
+ * it still counts as reachable — that is a reachability signal only, never
+ * evidence that the page supports the claim.
  *
  * The caller passes fetchImpl explicitly so tests can mock it. In real
  * code the default is the global fetch.
@@ -202,7 +208,7 @@ export async function resolveCitation(url, options = {}) {
     // even though the URL is live. no-cors means the response is opaque
     // but any non-error return is a strong signal the host exists and
     // the URL is routable.
-    await fetchImpl(url, {
+    const response = await fetchImpl(url, {
       method: 'GET',
       mode: 'no-cors',
       redirect: 'follow',
@@ -210,7 +216,7 @@ export async function resolveCitation(url, options = {}) {
       // Hint to the browser not to cache this purely diagnostic fetch.
       cache: 'no-store',
     });
-    return true;
+    return !isReadableErrorResponse(response);
   } catch {
     return false;
   } finally {

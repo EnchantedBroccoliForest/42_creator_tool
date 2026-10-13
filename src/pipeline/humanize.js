@@ -1,34 +1,25 @@
 /**
  * Post-finalize humanizer pass.
  *
- * Runs silently after handleAccept's finalizer call: rewrites the prose text
- * fields of the finalized market JSON to remove AI-writing tells, while
- * preserving structural fields (outcome names, URLs, ISO timestamps, numeric
- * thresholds, comparators, tickers, the overall JSON shape). Failures never
- * bubble up — on any error the caller gets the un-humanized JSON back so the
- * Finalize flow cannot be blocked by a flaky extra LLM call.
+ * Runs silently after handleAccept's finalizer call: rewrites the
+ * non-authoritative `shortDescription` to remove AI-writing tells. Failures
+ * never bubble up — on any error the caller gets the un-humanized JSON back
+ * so the Finalize flow cannot be blocked by a flaky extra LLM call.
  *
- * Defense in depth on structural drift:
- *   1. The humanizer prompt tells the model not to touch structural tokens.
- *   2. `PRESERVED_TOP_LEVEL_FIELDS` and outcome-name restoration are a
- *      blanket second layer for fields that must stay byte-for-byte stable.
- *   3. For prose fields (refinedQuestion, fullResolutionRules, edgeCases,
- *      outcome winCondition/resolutionCriteria), every protected token in
- *      the ORIGINAL string (URLs, ISO dates/timestamps, numeric tokens like
- *      "$50M" or "30%", comparators, tickers, referenced outcome names)
- *      must still appear verbatim in the humanized replacement; if any is
- *      missing, the field falls back to the original. This prevents silent
- *      mutation of resolution semantics (thresholds, source URLs, scenario
- *      → outcome mappings) that a drifting model could otherwise sneak in.
+ * Settlement-bearing fields (question, outcomes, win conditions, resolution
+ * criteria, rules, edge cases, timestamps) are never rewritten: the reviewed
+ * text is the text that ships. `shortDescription` is still checked so that
+ * it keeps every URL, date, number, ticker, and outcome name it mentioned.
  */
 
 import { queryModel } from '../api/openrouter.js';
 import { getSystemPrompt, buildHumanizerPrompt } from '../constants/prompts.js';
 import { tryParseJsonObject } from './llmJson.js';
 
-// Fields the humanizer is NOT allowed to modify. Restored from the original
-// after parsing the model's response.
-const PRESERVED_TOP_LEVEL_FIELDS = ['marketStartTimeUTC', 'marketEndTimeUTC'];
+// The only fields the humanizer may rewrite. Everything else in the market
+// JSON is settlement text that passed review and must reach the creator
+// unchanged.
+const HUMANIZABLE_FIELDS = ['shortDescription'];
 
 // Token extractors used by the structural-drift guard. Every token the
 // humanizer is told to preserve must survive verbatim in the replacement —
@@ -134,13 +125,13 @@ function collectOutcomeNames(original) {
 }
 
 /**
- * Merge humanized text back into the original JSON. Structural fields
- * (outcome names, marketStart/EndTimeUTC) are always taken from the
- * original; prose fields are only adopted when they preserve every
- * protected token and outcome-name reference that appeared in the
- * original. Returns `{merged, rejectedFields}` — `rejectedFields` names
- * the dot-path of every humanized string that failed the guard so the
- * caller can log the drift for traceability.
+ * Merge humanized text back into the original JSON. Only the
+ * non-authoritative `shortDescription` is ever adopted, and only when it
+ * preserves every protected token and outcome-name reference. Every
+ * settlement-bearing field (refinedQuestion, outcomes, fullResolutionRules,
+ * edgeCases, timestamps) is taken from the original unconditionally: a token
+ * guard cannot tell "exceeds 100" from "does not exceed 100", so those
+ * fields are never rewritten after review. Returns `{merged, rejectedFields}`.
  *
  * @param {Object} original
  * @param {Object} humanized
@@ -154,43 +145,13 @@ export function mergeHumanized(original, humanized) {
   const rejectedFields = [];
   const merged = { ...original };
 
-  for (const key of ['refinedQuestion', 'shortDescription', 'fullResolutionRules', 'edgeCases']) {
+  for (const key of HUMANIZABLE_FIELDS) {
     if (typeof original[key] !== 'string') continue;
     const { value, kept } = adoptIfStable(original[key], humanized[key], outcomeNames);
     merged[key] = value;
     if (!kept && typeof humanized[key] === 'string' && humanized[key].trim()) {
       rejectedFields.push(key);
     }
-  }
-
-  for (const key of PRESERVED_TOP_LEVEL_FIELDS) {
-    if (key in original) merged[key] = original[key];
-  }
-
-  if (Array.isArray(original.outcomes)) {
-    const humanizedOutcomes = Array.isArray(humanized.outcomes) ? humanized.outcomes : [];
-    merged.outcomes = original.outcomes.map((origOutcome, i) => {
-      const h = humanizedOutcomes[i];
-      if (!isPlainObject(h)) return origOutcome;
-
-      const winResult = adoptIfStable(origOutcome.winCondition, h.winCondition, outcomeNames);
-      if (!winResult.kept && typeof h.winCondition === 'string' && h.winCondition.trim()) {
-        rejectedFields.push(`outcomes[${i}].winCondition`);
-      }
-
-      const critResult = adoptIfStable(origOutcome.resolutionCriteria, h.resolutionCriteria, outcomeNames);
-      if (!critResult.kept && typeof h.resolutionCriteria === 'string' && h.resolutionCriteria.trim()) {
-        rejectedFields.push(`outcomes[${i}].resolutionCriteria`);
-      }
-
-      return {
-        ...origOutcome,
-        winCondition: winResult.value,
-        resolutionCriteria: critResult.value,
-        // Outcome names are referenced by edgeCases — never rewrite.
-        name: origOutcome.name,
-      };
-    });
   }
 
   return { merged, rejectedFields };
