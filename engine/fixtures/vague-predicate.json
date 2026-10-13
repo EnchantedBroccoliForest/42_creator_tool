@@ -1,0 +1,62 @@
+{
+  "id": "vague-predicate",
+  "description": "Freeform predicates cannot be proven MECE; a challenger must attest before acceptance.",
+  "portedFrom": "eval/fixtures/ambiguity/vague-predicate.json",
+  "spec": {
+    "specVersion": 1,
+    "question": "Will the Federal Reserve signal a policy pivot at its June 2027 meeting?",
+    "shortDescription": "Tracks whether Bitcoin closes above $100,000 on 30 June 2027.",
+    "outcomes": [
+      {
+        "id": "yes",
+        "name": "Yes",
+        "winCondition": "The FOMC statement signals a pivot."
+      },
+      {
+        "id": "no",
+        "name": "No",
+        "winCondition": "The FOMC statement does not signal a pivot."
+      }
+    ],
+    "timing": {
+      "tradingStartUTC": "2027-01-01T00:00:00Z",
+      "tradingCutoffUTC": "2027-06-30T00:00:00Z",
+      "observationStartUTC": "2027-06-30T00:00:00Z",
+      "observationEndUTC": "2027-06-30T23:59:59Z"
+    },
+    "sources": [
+      {
+        "id": "fomc",
+        "description": "FOMC statement",
+        "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+        "access": "public",
+        "extraction": "Text of the June 2027 FOMC statement"
+      }
+    ],
+    "sourcePrecedence": [
+      "fomc"
+    ],
+    "predicate": {
+      "kind": "freeform",
+      "description": "Whether the statement signals a pivot."
+    },
+    "edgeCases": [
+      {
+        "id": "no-close",
+        "kind": "source_unavailable",
+        "scenario": "Neither Coinbase nor Kraken publishes a 2027-06-30 close within 24 hours of the window closing",
+        "resolvesTo": "no"
+      }
+    ]
+  },
+  "attest": [
+    "judgment.objective_source",
+    "judgment.manipulation_resistant",
+    "judgment.atomic_claims"
+  ],
+  "expected": {
+    "decision": "incomplete",
+    "failedChecks": [],
+    "missingIncludes": "predicate.partition"
+  }
+}

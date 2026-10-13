@@ -1,0 +1,92 @@
+{
+  "id": "clean-categorical",
+  "description": "Open-set categorical market with a catch-all outcome.",
+  "portedFrom": "eval/fixtures/ambiguity/clean-baseline.json",
+  "spec": {
+    "specVersion": 1,
+    "question": "Which artist will have the #1 song on the Billboard Hot 100 chart dated 2027-01-02?",
+    "shortDescription": "Tracks the first Billboard Hot 100 number one of 2027.",
+    "outcomes": [
+      {
+        "id": "taylor-swift",
+        "name": "Taylor Swift",
+        "winCondition": "Taylor Swift is the lead artist of the #1 song."
+      },
+      {
+        "id": "drake",
+        "name": "Drake",
+        "winCondition": "Drake is the lead artist of the #1 song."
+      },
+      {
+        "id": "sabrina-carpenter",
+        "name": "Sabrina Carpenter",
+        "winCondition": "Sabrina Carpenter is the lead artist of the #1 song."
+      },
+      {
+        "id": "other",
+        "name": "Other / None",
+        "winCondition": "Any other lead artist has the #1 song, or no chart is published.",
+        "catchAll": true
+      }
+    ],
+    "timing": {
+      "tradingStartUTC": "2026-12-01T00:00:00Z",
+      "tradingCutoffUTC": "2026-12-29T00:00:00Z",
+      "observationStartUTC": "2026-12-29T00:00:00Z",
+      "observationEndUTC": "2026-12-31T23:59:59Z"
+    },
+    "sources": [
+      {
+        "id": "billboard",
+        "description": "Billboard Hot 100 chart page",
+        "url": "https://www.billboard.com/charts/hot-100/2027-01-02/",
+        "access": "public",
+        "extraction": "Lead artist of the song at position 1"
+      }
+    ],
+    "sourcePrecedence": [
+      "billboard"
+    ],
+    "predicate": {
+      "kind": "categorical",
+      "closedSet": false,
+      "cases": [
+        {
+          "outcomeId": "taylor-swift",
+          "matches": "Taylor Swift"
+        },
+        {
+          "outcomeId": "drake",
+          "matches": "Drake"
+        },
+        {
+          "outcomeId": "sabrina-carpenter",
+          "matches": "Sabrina Carpenter"
+        }
+      ]
+    },
+    "edgeCases": [
+      {
+        "id": "no-chart",
+        "kind": "source_unavailable",
+        "scenario": "Billboard does not publish the 2027-01-02 chart by 2026-12-31T23:59:59Z",
+        "resolvesTo": "other"
+      },
+      {
+        "id": "featured",
+        "kind": "other",
+        "scenario": "A listed artist appears only as a featured artist on the #1 song",
+        "resolvesTo": "other"
+      }
+    ]
+  },
+  "attest": [
+    "judgment.objective_source",
+    "judgment.manipulation_resistant",
+    "judgment.atomic_claims"
+  ],
+  "expected": {
+    "decision": "accept",
+    "failedChecks": []
+  }
+}
