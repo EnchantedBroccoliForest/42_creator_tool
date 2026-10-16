@@ -1,0 +1,91 @@
+{
+  "id": "deadline-before-observation-end",
+  "description": "The outage fallback could fire while the settling close can still be observed.",
+  "portedFrom": null,
+  "spec": {
+    "specVersion": 1,
+    "question": "Will the BTC-USD daily close on 2027-06-30 be above $100,000?",
+    "shortDescription": "Tracks whether Bitcoin closes above $100,000 on 30 June 2027.",
+    "outcomes": [
+      {
+        "id": "yes",
+        "name": "Yes",
+        "winCondition": "The BTC-USD daily close for 2027-06-30 is above $100,000."
+      },
+      {
+        "id": "no",
+        "name": "No",
+        "winCondition": "The BTC-USD daily close for 2027-06-30 is $100,000 or lower, or no close is published."
+      }
+    ],
+    "timing": {
+      "tradingStartUTC": "2027-01-01T00:00:00Z",
+      "tradingCutoffUTC": "2027-06-30T00:00:00Z",
+      "observationStartUTC": "2027-06-30T00:00:00Z",
+      "observationEndUTC": "2027-06-30T23:59:59Z",
+      "dataDeadlineUTC": "2027-06-30T12:00:00Z"
+    },
+    "sources": [
+      {
+        "id": "coinbase",
+        "description": "Coinbase Exchange BTC-USD daily candles",
+        "url": "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=86400",
+        "access": "public",
+        "extraction": "Close price of the 2027-06-30 UTC daily candle"
+      },
+      {
+        "id": "kraken",
+        "description": "Kraken XBT/USD daily OHLC",
+        "url": "https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=1440",
+        "access": "public",
+        "extraction": "Close price of the 2027-06-30 UTC daily candle"
+      }
+    ],
+    "sourcePrecedence": [
+      "coinbase",
+      "kraken"
+    ],
+    "predicate": {
+      "kind": "numeric_threshold",
+      "metric": "BTC-USD close",
+      "unit": "USD",
+      "observation": "value_at_end",
+      "bands": [
+        {
+          "outcomeId": "yes",
+          "min": {
+            "value": 100000,
+            "inclusive": false
+          }
+        },
+        {
+          "outcomeId": "no",
+          "max": {
+            "value": 100000,
+            "inclusive": true
+          }
+        }
+      ]
+    },
+    "edgeCases": [
+      {
+        "id": "no-close",
+        "kind": "source_unavailable",
+        "scenario": "Neither Coinbase nor Kraken publishes a 2027-06-30 close within 24 hours of the window closing",
+        "resolvesTo": "no"
+      }
+    ]
+  },
+  "attest": [
+    "judgment.objective_source",
+    "judgment.manipulation_resistant",
+    "judgment.atomic_claims"
+  ],
+  "expected": {
+    "decision": "blocked",
+    "failedChecks": [
+      "timing.order"
+    ],
+    "blockingIncludes": "outage fallback could settle the market"
+  }
+}

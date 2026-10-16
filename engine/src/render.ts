@@ -42,16 +42,16 @@ export function freeze(spec: MarketSpec, decision: Decision): FrozenMarket {
 }
 
 const OBSERVATION_PHRASE = {
-  value_at_end: 'as of',
-  max_during: 'at its highest between',
-  min_during: 'at its lowest between',
+  value_at_end: 'the last',
+  max_during: 'the highest',
+  min_during: 'the lowest',
 } as const;
 
-function bandText(band: Band, metric: string, unit: string): string {
+function rangeText(band: Band, unit: string): string {
   const u = unit ? ` ${unit}` : '';
   const lo = band.min ? `${band.min.inclusive ? 'at least' : 'above'} ${band.min.value}${u}` : '';
   const hi = band.max ? `${band.max.inclusive ? 'at most' : 'below'} ${band.max.value}${u}` : '';
-  return `${metric} is ${[lo, hi].filter(Boolean).join(' and ')}`;
+  return [lo, hi].filter(Boolean).join(' and ');
 }
 
 function stripPeriod(text: string): string {
@@ -70,24 +70,25 @@ export function renderMarketJson(spec: MarketSpec): MarketJson {
   const outcomeName = (id: string) => spec.outcomes.find((o) => o.id === id)?.name ?? id;
   const p = spec.predicate;
   const t = spec.timing;
-  const window = p.kind === 'numeric_threshold' && p.observation === 'value_at_end'
-    ? `${OBSERVATION_PHRASE.value_at_end} ${t.observationEndUTC}`
-    : p.kind === 'numeric_threshold'
-      ? `${OBSERVATION_PHRASE[p.observation]} ${t.observationStartUTC} and ${t.observationEndUTC}`
-      : `between ${t.observationStartUTC} and ${t.observationEndUTC}`;
+  const between = `reported between ${t.observationStartUTC} and ${t.observationEndUTC}`;
+  // The exact observation resolve() settles on, stated in the artifact so a
+  // change to the window or the observation rule always changes the text.
+  const subject = p.kind === 'numeric_threshold'
+    ? `${OBSERVATION_PHRASE[p.observation]} ${p.metric} ${between}`
+    : `the last result ${between}`;
 
   const criteriaFor = (outcomeId: string): string => {
     const via = primary ? `Read from ${sourceLabel(primary)}: ${stripPeriod(primary.extraction)}.` : '';
     if (p.kind === 'numeric_threshold') {
-      const bands = p.bands.filter((b) => b.outcomeId === outcomeId).map((b) => bandText(b, p.metric, p.unit));
-      if (bands.length > 0) return `${via} Wins if ${bands.join(', or ')} ${window}.`.trim();
+      const ranges = p.bands.filter((b) => b.outcomeId === outcomeId).map((b) => rangeText(b, p.unit));
+      if (ranges.length > 0) return `${via} Wins if ${subject} is ${ranges.join(', or ')}.`.trim();
     }
     if (p.kind === 'categorical') {
       const cases = p.cases.filter((c) => c.outcomeId === outcomeId).map((c) => `"${c.matches}"`);
-      if (cases.length > 0) return `${via} Wins if the result is ${cases.join(' or ')}.`.trim();
+      if (cases.length > 0) return `${via} Wins if ${subject} is ${cases.join(' or ')}.`.trim();
     }
     const outcome = spec.outcomes.find((o) => o.id === outcomeId);
-    if (outcome?.catchAll) return `${via} Wins if the result matches no other outcome.`.trim();
+    if (outcome?.catchAll) return `${via} Wins if ${subject} matches no other outcome.`.trim();
     return via;
   };
 
@@ -95,10 +96,13 @@ export function renderMarketJson(spec: MarketSpec): MarketJson {
   sources.forEach((s, i) => {
     rules.push(i === 0
       ? `Resolution source: ${sourceLabel(s)}. ${stripPeriod(s.extraction)}.`
-      : `If the source above has no data, use ${sourceLabel(s)}. ${stripPeriod(s.extraction)}.`);
+      : `If no earlier source reports a value by ${t.dataDeadlineUTC}, use ${sourceLabel(s)}. ${stripPeriod(s.extraction)}.`);
   });
-  if (p.kind === 'numeric_threshold') rules.push(`The settling value is ${p.metric} ${window}.`);
+  if (p.kind === 'numeric_threshold') rules.push(`The settling value is ${subject}.`);
+  if (p.kind === 'categorical') rules.push(`The result is ${subject}.`);
   if (p.kind === 'freeform') rules.push(p.description);
+  const outage = spec.edgeCases.find((e) => e.kind === 'source_unavailable');
+  if (outage) rules.push(`If no source reports a value by ${t.dataDeadlineUTC}, ${outcomeName(outage.resolvesTo)} wins.`);
   rules.push(`Trading opens ${t.tradingStartUTC} and closes ${t.tradingCutoffUTC}. All times are UTC.`);
 
   return {

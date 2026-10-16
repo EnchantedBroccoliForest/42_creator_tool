@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { resolve, type Observation } from '../src/index.js';
 import { fixtureSpec } from './helpers.js';
 
-const AFTER = '2027-07-01T12:00:00Z';
+// Observation window closes 2027-06-30T23:59:59Z; data deadline is 24h later.
+const AFTER = '2027-07-02T00:00:00Z';
+const BEFORE_DEADLINE = '2027-07-01T00:00:00Z';
 const close = (sourceId: string, value: number | string, at = '2027-06-30T23:59:00Z'): Observation => ({ sourceId, value, observedAtUTC: at });
 
 describe('resolve (numeric threshold)', () => {
@@ -30,8 +32,18 @@ describe('resolve (numeric threshold)', () => {
     expect(resolve(spec, [close('kraken', 99000)], AFTER)).toMatchObject({ status: 'resolved', outcomeId: 'no', sourceId: 'kraken' });
   });
 
-  it('applies the source_unavailable edge case when no source has data', () => {
-    expect(resolve(spec, [], AFTER)).toEqual({ status: 'resolved', outcomeId: 'no', via: 'edge_case', edgeCaseId: 'no-close' });
+  it('applies the source_unavailable edge case only after the data deadline', () => {
+    expect(resolve(spec, [], '2027-07-01T00:00:00Z')).toMatchObject({ status: 'pending' });
+    expect(resolve(spec, [], '2027-07-01T23:59:58Z')).toMatchObject({ status: 'pending' });
+    expect(resolve(spec, [], '2027-07-01T23:59:59Z')).toEqual({ status: 'resolved', outcomeId: 'no', via: 'edge_case', edgeCaseId: 'no-close' });
+  });
+
+  it('settles from the primary source as soon as it reports, before the deadline', () => {
+    expect(resolve(spec, [close('coinbase', 120000)], BEFORE_DEADLINE)).toMatchObject({ status: 'resolved', outcomeId: 'yes', sourceId: 'coinbase' });
+  });
+
+  it('waits for the primary source until the deadline before using a fallback source', () => {
+    expect(resolve(spec, [close('kraken', 99000)], BEFORE_DEADLINE)).toMatchObject({ status: 'pending' });
   });
 
   it('refuses to pick a winner when the bands overlap', () => {

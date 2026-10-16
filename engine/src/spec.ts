@@ -32,6 +32,13 @@ export const TimingSchema = z.object({
   /** Window in which the resolving observation is taken. */
   observationStartUTC: z.string(),
   observationEndUTC: z.string(),
+  /**
+   * Latest time a source may publish the settling value. Until then a missing
+   * value keeps the market pending and only the primary source can settle it;
+   * after it, lower-precedence sources and then the source_unavailable edge
+   * case apply.
+   */
+  dataDeadlineUTC: z.string(),
 });
 
 export const SourceSchema = z.object({

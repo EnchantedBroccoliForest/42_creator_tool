@@ -33,7 +33,8 @@
       "tradingStartUTC": "2026-12-01T00:00:00Z",
       "tradingCutoffUTC": "2026-12-29T00:00:00Z",
       "observationStartUTC": "2026-12-29T00:00:00Z",
-      "observationEndUTC": "2026-12-31T23:59:59Z"
+      "observationEndUTC": "2026-12-31T23:59:59Z",
+      "dataDeadlineUTC": "2026-12-31T23:59:59Z"
     },
     "sources": [
       {

@@ -26,7 +26,8 @@ export function resolve(spec: MarketSpec, observations: Observation[], nowUTC: s
   const now = parseUtc(nowUTC);
   const start = parseUtc(spec.timing.observationStartUTC);
   const end = parseUtc(spec.timing.observationEndUTC);
-  if (now === null || start === null || end === null) {
+  const deadline = parseUtc(spec.timing.dataDeadlineUTC);
+  if (now === null || start === null || end === null || deadline === null) {
     return { status: 'unresolved', reason: 'Timestamps are not explicit UTC.' };
   }
   if (now < end) return { status: 'pending', reason: `Observation window closes ${spec.timing.observationEndUTC}.` };
@@ -36,14 +37,18 @@ export function resolve(spec: MarketSpec, observations: Observation[], nowUTC: s
     return { status: 'unresolved', reason: 'Freeform predicates are settled by the resolver, not by code.' };
   }
 
-  // First source in precedence order with any in-window observation wins.
   const inWindow = (o: Observation) => {
     const at = parseUtc(o.observedAtUTC);
     return at !== null && at >= start && at <= end;
   };
+  // Before the data deadline only the primary source can settle the market;
+  // a missing value there means "not published yet", not "unavailable".
+  // After the deadline, the first source in precedence order with data wins.
+  const beforeDeadline = now < deadline;
+  const candidates = beforeDeadline ? spec.sourcePrecedence.slice(0, 1) : spec.sourcePrecedence;
   let sourceId: string | undefined;
   let usable: Observation[] = [];
-  for (const id of spec.sourcePrecedence) {
+  for (const id of candidates) {
     usable = observations.filter((o) => o.sourceId === id && inWindow(o));
     if (usable.length > 0) {
       sourceId = id;
@@ -52,6 +57,9 @@ export function resolve(spec: MarketSpec, observations: Observation[], nowUTC: s
   }
 
   if (sourceId === undefined) {
+    if (beforeDeadline) {
+      return { status: 'pending', reason: `Waiting for "${spec.sourcePrecedence[0]}" until ${spec.timing.dataDeadlineUTC}.` };
+    }
     const fallback = spec.edgeCases.find((e) => e.kind === 'source_unavailable');
     if (!fallback) return { status: 'unresolved', reason: 'No source has data and there is no source_unavailable edge case.' };
     return { status: 'resolved', outcomeId: fallback.resolvesTo, via: 'edge_case', edgeCaseId: fallback.id };

@@ -12,6 +12,7 @@ const FIELDS: (keyof Timing)[] = [
   'tradingCutoffUTC',
   'observationStartUTC',
   'observationEndUTC',
+  'dataDeadlineUTC',
 ];
 
 export function parseUtc(value: string): number | null {
@@ -39,7 +40,13 @@ export function checkTimingOrder(spec: MarketSpec): CheckResult {
     }
   }
 
-  const { tradingStartUTC: start, tradingCutoffUTC: cutoff, observationStartUTC: obsStart, observationEndUTC: obsEnd } = t;
+  const {
+    tradingStartUTC: start,
+    tradingCutoffUTC: cutoff,
+    observationStartUTC: obsStart,
+    observationEndUTC: obsEnd,
+    dataDeadlineUTC: deadline,
+  } = t;
   if (start !== undefined && cutoff !== undefined && start >= cutoff) {
     f('cutoff_before_start', '/timing/tradingCutoffUTC', 'Trading cutoff must be after trading start.');
   }
@@ -52,6 +59,15 @@ export function checkTimingOrder(spec: MarketSpec): CheckResult {
       '/timing/tradingCutoffUTC',
       'Trading continues after the observation window closes, so traders can buy the known winner.',
       `At ${spec.timing.observationEndUTC} the result is fixed but trading stays open until ${spec.timing.tradingCutoffUTC}.`,
+    );
+  }
+
+  if (obsEnd !== undefined && deadline !== undefined && deadline < obsEnd) {
+    f(
+      'deadline_before_observation_end',
+      '/timing/dataDeadlineUTC',
+      'The data deadline falls before the observation window closes.',
+      `At ${spec.timing.dataDeadlineUTC} the outage fallback could settle the market while values can still be observed until ${spec.timing.observationEndUTC}.`,
     );
   }
 
