@@ -248,12 +248,13 @@ async function runReviewStage(run, models, options, cost, callbacks) {
 
   const successful = structured.filter((r) => r.reviewProse !== null);
   if (successful.length === 0) {
-    log(run, 'review', 'error', 'All reviewers failed.', callbacks);
-    return;
+    // An outage is an incomplete review, not a clean one.
+    throw new Error('All reviewers failed.');
   }
 
-  const allCriticisms = successful.flatMap((r) => r.criticisms);
-  run.criticisms = [...(run.criticisms || []), ...allCriticisms];
+  // Each review round replaces the previous round's criticisms: they were
+  // written against an earlier draft and must not outlive it.
+  run.criticisms = successful.flatMap((r) => r.criticisms);
 
   const allVotes = successful.flatMap((r) => r.rubricVotes);
   const judgeModel = options.aggregation === 'judge' ? models.judge : undefined;
@@ -281,13 +282,51 @@ async function runReviewStage(run, models, options, cost, callbacks) {
 }
 
 /**
+ * Render the review findings the updater needs to act on: every rubric item
+ * that did not pass, with the reviewers' reasons, plus every criticism.
+ * Decision labels alone ("mece: fail") give the updater nothing to fix.
+ */
+export function buildReviewFeedback(aggregation, criticisms) {
+  const lines = [];
+  for (const item of aggregation?.checklist || []) {
+    if (item.decision === 'pass') continue;
+    lines.push(`- Rubric ${item.id}: ${item.decision}`);
+    for (const v of item.votes || []) {
+      if (v.verdict === 'yes' || !v.rationale) continue;
+      lines.push(`    ${v.reviewerModel} (${v.verdict}): ${v.rationale}`);
+    }
+  }
+  for (const c of criticisms || []) {
+    lines.push(`- ${String(c.severity || '').toUpperCase()} [${c.category}] on ${c.claimId}: ${c.rationale}`);
+  }
+  if (lines.length === 0) return '(no outstanding review findings)';
+  return lines.join('\n');
+}
+
+/**
+ * True when the first review did not pass outright,
+ * so the updated draft must be reviewed again before it can be accepted.
+ */
+function reviewNeedsRecheck(run) {
+  return reviewBlocks(run)
+    || (run.criticisms || []).some((c) => c.severity === 'blocker');
+}
+
+/**
+ * A review that ran must pass outright. "needs_escalation" (ties, unsure
+ * votes, missing votes) has no human to escalate to in a headless run, so it
+ * is unresolved, not a pass.
+ */
+function reviewBlocks(run) {
+  return Boolean(run.aggregation) && run.aggregation.overall !== 'pass';
+}
+
+/**
  * Run the update stage: new draft, re-extract, re-verify, re-route.
  */
 async function runUpdateStage(run, models, options, fetchImpl, cost, callbacks, referencesStr) {
   const latestDraft = run.drafts[run.drafts.length - 1].content;
-  const reviewText = run.aggregation?.checklist
-    ?.map((item) => `${item.id}: ${item.decision}`)
-    .join('\n') || '(no review)';
+  const reviewText = buildReviewFeedback(run.aggregation, run.criticisms);
   const focusBlock = buildRoutingFocusBlock(run.routing, run.claims);
   const humanFeedback = options.humanFeedback || '';
   const updateResult = await queryModel(
@@ -367,19 +406,21 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
   const blockedByRouting = routingOverall === 'blocked';
   const blockedByVerification = (run.verification || []).some((v) => v.verdict === 'hard_fail');
   const blockedBySources = sourceStatus === 'some_unreachable' || sourceStatus === 'all_unreachable';
+  const blockedByReview = reviewBlocks(run);
 
   const gateResult = {
-    allowed: !blockedByRisk && !blockedByRouting && !blockedByVerification && !blockedBySources,
+    allowed: !blockedByRisk && !blockedByRouting && !blockedByVerification && !blockedBySources && !blockedByReview,
     blockedByRisk,
     blockedByRouting,
     blockedByVerification,
     blockedBySources,
+    blockedByReview,
   };
 
   if (!gateResult.allowed) {
     log(
       run, 'accept', 'error',
-      `Finalize blocked: risk=${blockedByRisk}, routing=${blockedByRouting}, verification=${blockedByVerification}, sources=${blockedBySources}`,
+      `Finalize blocked: risk=${blockedByRisk}, routing=${blockedByRouting}, verification=${blockedByVerification}, sources=${blockedBySources}, review=${blockedByReview}`,
       callbacks,
     );
     return gateResult;
@@ -453,6 +494,7 @@ function buildGates(run, riskLevel) {
 
   return {
     risk: { level, blocked: level === 'high' },
+    review: { overall: run.aggregation?.overall || null, blocked: reviewBlocks(run) },
     routing: { overall: routingOverall, blocked: routingOverall === 'blocked' },
     verification: { hasHardFail, blocked: hasHardFail },
     sources: { status: sourcesStatus, blocked: sourcesStatus === 'some_unreachable' || sourcesStatus === 'all_unreachable' },
@@ -659,6 +701,20 @@ async function _orchestrateInner(config, signal) {
     run.cost = cost.snapshot();
     run.gates = buildGates(run, riskLevel);
     return run;
+  }
+
+  // --- 4.5. Re-review ---
+  // Findings that can block finalization are only closed by a fresh review
+  // of the updated draft, never carried forward from the earlier one.
+  if (reviewNeedsRecheck(run)) {
+    ok = await stage('re_review', async () => {
+      await runReviewStage(run, models, options, cost, callbacks);
+    });
+    if (!ok || run.status === 'error') {
+      run.cost = cost.snapshot();
+      run.gates = buildGates(run, riskLevel);
+      return run;
+    }
   }
 
   // --- 5. Risk analysis ---

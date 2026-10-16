@@ -174,10 +174,62 @@ export function harvestUrls({ references, sourceOfTruth, claims }) {
   }));
 }
 
+// Hostnames that only resolve inside a private network or the local machine.
+const BLOCKED_HOST_SUFFIXES = ['.localhost', '.local', '.internal'];
+const BLOCKED_HOSTS = new Set(['localhost', 'metadata', 'metadata.google.internal']);
+
+function isPrivateIPv4(host) {
+  const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(host);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return a === 0 || a === 10 || a === 127
+    || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31)
+    || (a === 192 && b === 168)
+    || (a === 100 && b >= 64 && b <= 127);
+}
+
+function isPrivateIPv6(host) {
+  if (!host.includes(':')) return false;
+  return host === '::' || host === '::1'
+    || host.startsWith('::ffff:')
+    || /^f[cd][0-9a-f]{2}:/.test(host)
+    || /^fe[89ab][0-9a-f]:/.test(host);
+}
+
 /**
- * Attempt to resolve a single URL. Returns a boolean: true if the fetch
- * produced any kind of response (including an opaque CORS response) or
- * false if it failed with a network error or timeout.
+ * True only for http(s) URLs whose host is a public name or address. Source
+ * probes run server-side in the CLI and review service, where a cited URL
+ * must never reach loopback, link-local (cloud metadata), or private
+ * networks. The WHATWG URL parser normalizes numeric and hex IPv4 forms
+ * first, so "http://2130706433/" is caught as 127.0.0.1. DNS names that
+ * resolve to private addresses are not caught here.
+ */
+export function isPublicHttpUrl(raw) {
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (!host || BLOCKED_HOSTS.has(host)) return false;
+  if (BLOCKED_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))) return false;
+  return !isPrivateIPv4(host) && !isPrivateIPv6(host);
+}
+
+function isReadableErrorResponse(response) {
+  return typeof response?.status === 'number' && response.status >= 400;
+}
+
+/**
+ * Attempt to resolve a single URL. Returns a boolean: false for a URL that
+ * is not public http(s) (never fetched), a network error, a timeout, or a
+ * readable 4xx/5xx status (e.g. a 404 when running
+ * server-side). An opaque no-cors response (browser) carries no status, so
+ * it still counts as reachable — that is a reachability signal only, never
+ * evidence that the page supports the claim.
  *
  * The caller passes fetchImpl explicitly so tests can mock it. In real
  * code the default is the global fetch.
@@ -190,6 +242,7 @@ export async function resolveCitation(url, options = {}) {
   const { timeoutMs = 3000, fetchImpl = typeof fetch === 'function' ? fetch : null } =
     options;
   if (!fetchImpl) return false;
+  if (!isPublicHttpUrl(url)) return false;
 
   const controller =
     typeof AbortController === 'function' ? new AbortController() : null;
@@ -202,7 +255,7 @@ export async function resolveCitation(url, options = {}) {
     // even though the URL is live. no-cors means the response is opaque
     // but any non-error return is a strong signal the host exists and
     // the URL is routable.
-    await fetchImpl(url, {
+    const response = await fetchImpl(url, {
       method: 'GET',
       mode: 'no-cors',
       redirect: 'follow',
@@ -210,7 +263,7 @@ export async function resolveCitation(url, options = {}) {
       // Hint to the browser not to cache this purely diagnostic fetch.
       cache: 'no-store',
     });
-    return true;
+    return !isReadableErrorResponse(response);
   } catch {
     return false;
   } finally {

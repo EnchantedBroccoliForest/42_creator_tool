@@ -193,9 +193,10 @@ export function routeClaims(input) {
   // Empty claim set → empty routing. This is the initial state before
   // the first draft has been extracted, and also what an import of a
   // minimal run looks like.
+  // With no claims to pin to, every criticism is run-scoped.
   if (claims.length === 0) {
-    const hasGlobalBlocker = criticisms.some((c) => c?.claimId === GLOBAL_CLAIM_ID && c.severity === 'blocker');
-    const hasGlobalMajor = criticisms.some((c) => c?.claimId === GLOBAL_CLAIM_ID && c.severity === 'major');
+    const hasGlobalBlocker = criticisms.some((c) => c?.severity === 'blocker');
+    const hasGlobalMajor = criticisms.some((c) => c?.severity === 'major');
     if (hasGlobalBlocker) return blockedRouting();
     return {
       items: [],
@@ -207,11 +208,15 @@ export function routeClaims(input) {
   }
 
   const verifByClaim = new Map(verifications.map((v) => [v.claimId, v]));
+  const knownClaimIds = new Set(claims.map((c) => c.id));
   const criticismsByClaim = new Map();
   const globalCriticisms = [];
   for (const c of criticisms) {
     if (!c) continue;
-    if (c.claimId === GLOBAL_CLAIM_ID) {
+    // A criticism pinned to a claim id that is not in the current claim set
+    // (reviewer guessed an id, or the claim disappeared after a revision)
+    // is promoted to run scope instead of being silently dropped.
+    if (c.claimId === GLOBAL_CLAIM_ID || !knownClaimIds.has(c.claimId)) {
       globalCriticisms.push(c);
       continue;
     }
