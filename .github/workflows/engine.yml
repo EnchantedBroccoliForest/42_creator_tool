@@ -16,6 +16,9 @@ on:
       - 'engine/**'
       - '.github/workflows/engine.yml'
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
