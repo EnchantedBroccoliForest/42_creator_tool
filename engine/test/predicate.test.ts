@@ -37,6 +37,33 @@ describe('predicate.partition (numeric)', () => {
     expect(r.findings[0]!.counterexample).toContain('= 10 USD both mid and high win');
   });
 
+  it('allows bands for the same outcome to overlap', () => {
+    const r = withBands([
+      { outcomeId: 'low', max: lt(10) },
+      { outcomeId: 'low', min: le(0), max: le(10) },
+      { outcomeId: 'high', min: lt(10) },
+    ], ['low', 'high']);
+    expect(r.status).toBe('passed');
+    expect(r.findings).toEqual([]);
+  });
+
+  it('reports every pair of different outcomes that overlap', () => {
+    // high [40, 60] overlaps both low's tail and mid's start.
+    const r = withBands([
+      { outcomeId: 'low', max: le(50) },
+      { outcomeId: 'mid', min: lt(50), max: le(100) },
+      { outcomeId: 'high', min: le(40), max: le(60) },
+      { outcomeId: 'mid', min: lt(100) },
+    ]);
+    const pairs = r.findings
+      .filter((f) => f.findingId.startsWith('predicate.partition:overlap'))
+      .map((f) => f.counterexample);
+    expect(pairs).toEqual([
+      'At BTC-USD close = 40 USD both low and high win.',
+      'At BTC-USD close = 60 USD both high and mid win.',
+    ]);
+  });
+
   it('accepts a single-point band between two open bands', () => {
     const r = withBands([
       { outcomeId: 'low', max: lt(5) },

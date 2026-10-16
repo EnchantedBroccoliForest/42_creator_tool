@@ -304,12 +304,21 @@ export function buildReviewFeedback(aggregation, criticisms) {
 }
 
 /**
- * True when the first review found something that can block finalization,
+ * True when the first review did not pass outright,
  * so the updated draft must be reviewed again before it can be accepted.
  */
 function reviewNeedsRecheck(run) {
-  return run.aggregation?.overall === 'fail'
+  return reviewBlocks(run)
     || (run.criticisms || []).some((c) => c.severity === 'blocker');
+}
+
+/**
+ * A review that ran must pass outright. "needs_escalation" (ties, unsure
+ * votes, missing votes) has no human to escalate to in a headless run, so it
+ * is unresolved, not a pass.
+ */
+function reviewBlocks(run) {
+  return Boolean(run.aggregation) && run.aggregation.overall !== 'pass';
 }
 
 /**
@@ -397,7 +406,7 @@ async function runFinalizeStage(run, riskLevel, models, cost, callbacks) {
   const blockedByRouting = routingOverall === 'blocked';
   const blockedByVerification = (run.verification || []).some((v) => v.verdict === 'hard_fail');
   const blockedBySources = sourceStatus === 'some_unreachable' || sourceStatus === 'all_unreachable';
-  const blockedByReview = run.aggregation?.overall === 'fail';
+  const blockedByReview = reviewBlocks(run);
 
   const gateResult = {
     allowed: !blockedByRisk && !blockedByRouting && !blockedByVerification && !blockedBySources && !blockedByReview,
@@ -483,11 +492,9 @@ function buildGates(run, riskLevel) {
     }
   }
 
-  const reviewOverall = run.aggregation?.overall || null;
-
   return {
     risk: { level, blocked: level === 'high' },
-    review: { overall: reviewOverall, blocked: reviewOverall === 'fail' },
+    review: { overall: run.aggregation?.overall || null, blocked: reviewBlocks(run) },
     routing: { overall: routingOverall, blocked: routingOverall === 'blocked' },
     verification: { hasHardFail, blocked: hasHardFail },
     sources: { status: sourcesStatus, blocked: sourcesStatus === 'some_unreachable' || sourcesStatus === 'all_unreachable' },

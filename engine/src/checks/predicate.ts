@@ -55,9 +55,25 @@ function isEmpty(iv: Interval): boolean {
   return false;
 }
 
-/** A value strictly between lo and hi, or just above lo when hi is unbounded. */
-function nextInside(lo: number, hi: number): number {
-  return Number.isFinite(hi) ? (lo + hi) / 2 : lo + 1;
+/**
+ * A value both intervals contain, or null when they are disjoint. Prefers a
+ * shared boundary, since that is where real specs usually collide.
+ */
+function sharedValue(p: Interval, q: Interval): { value: number; point: boolean } | null {
+  const lo = p.lo.value > q.lo.value ? p.lo
+    : q.lo.value > p.lo.value ? q.lo
+    : { value: p.lo.value, inclusive: p.lo.inclusive && q.lo.inclusive };
+  const hi = p.hi.value < q.hi.value ? p.hi
+    : q.hi.value < p.hi.value ? q.hi
+    : { value: p.hi.value, inclusive: p.hi.inclusive && q.hi.inclusive };
+  if (lo.value > hi.value) return null;
+  if (lo.value === hi.value) return lo.inclusive && hi.inclusive ? { value: lo.value, point: true } : null;
+  if (lo.inclusive) return { value: lo.value, point: false };
+  if (hi.inclusive) return { value: hi.value, point: false };
+  if (Number.isFinite(lo.value) && Number.isFinite(hi.value)) return { value: (lo.value + hi.value) / 2, point: false };
+  if (Number.isFinite(lo.value)) return { value: lo.value + 1, point: false };
+  if (Number.isFinite(hi.value)) return { value: hi.value - 1, point: false };
+  return { value: 0, point: false };
 }
 
 function fmt(n: number): string {
@@ -110,29 +126,37 @@ function checkBands(spec: MarketSpec, p: NumericThreshold): Finding[] {
     f('gap_below', `/predicate/bands/${first.index}/min`, 'Values below the lowest band match no outcome.', `At ${at(x)} no outcome wins.`);
   }
 
-  // Sweep left to right, tracking the furthest upper end seen so far and the
-  // band that owns it. Comparing each band against that frontier (not just
-  // its neighbour) handles bands nested inside wider ones.
+  // Overlaps: every pair of bands that map to different outcomes and share at
+  // least one value. Bands for the same outcome may overlap freely.
+  for (let i = 0; i < intervals.length; i += 1) {
+    for (let j = i + 1; j < intervals.length; j += 1) {
+      const p1 = intervals[i]!;
+      const p2 = intervals[j]!;
+      if (p1.outcomeId === p2.outcomeId) continue;
+      const x = sharedValue(p1, p2);
+      if (x === null) continue;
+      const exactly = x.point ? 'exactly ' : '';
+      f(
+        'overlap',
+        `/predicate/bands/${p2.index}`,
+        `Bands ${p1.index} and ${p2.index} overlap.`,
+        `At ${exactly}${at(x.value)} both ${name(p1.outcomeId)} and ${name(p2.outcomeId)} win.`,
+      );
+    }
+  }
+
+  // Gaps: sweep left to right, tracking the furthest upper end covered so far.
   let frontier = first;
   for (let k = 1; k < intervals.length; k += 1) {
     const next = intervals[k]!;
     const a = frontier.hi;
     const b = next.lo;
     const path = `/predicate/bands/${next.index}`;
-    const both = `both ${name(frontier.outcomeId)} and ${name(next.outcomeId)} win`;
     if (a.value < b.value) {
       const x = Number.isFinite(a.value) ? (a.value + b.value) / 2 : b.value;
       f('gap', path, `No outcome covers the values between band ${frontier.index} and band ${next.index}.`, `At ${at(x)} no outcome wins.`);
-    } else if (a.value === b.value) {
-      if (a.inclusive && b.inclusive) {
-        f('overlap', path, `Bands ${frontier.index} and ${next.index} both include ${fmt(a.value)}.`, `At exactly ${at(a.value)} ${both}.`);
-      } else if (!a.inclusive && !b.inclusive) {
-        f('gap', path, `Neither band ${frontier.index} nor band ${next.index} includes ${fmt(a.value)}.`, `At exactly ${at(a.value)} no outcome wins.`);
-      }
-    } else {
-      // a.value > b.value: next starts inside the frontier band.
-      const x = b.inclusive ? b.value : nextInside(b.value, Math.min(a.value, next.hi.value));
-      f('overlap', path, `Bands ${frontier.index} and ${next.index} overlap.`, `At ${at(x)} ${both}.`);
+    } else if (a.value === b.value && !a.inclusive && !b.inclusive) {
+      f('gap', path, `Neither band ${frontier.index} nor band ${next.index} includes ${fmt(a.value)}.`, `At exactly ${at(a.value)} no outcome wins.`);
     }
     if (next.hi.value > a.value || (next.hi.value === a.value && next.hi.inclusive && !a.inclusive)) {
       frontier = next;

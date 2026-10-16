@@ -10,6 +10,11 @@ function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function hasText(value) {
+  if (Array.isArray(value)) return value.some(isNonEmptyString);
+  return isNonEmptyString(value);
+}
+
 /**
  * Structural check on the finalizer output. Fails closed: unparseable
  * finalizer output (the `{ raw }` fallback) and JSON missing the fields a
@@ -45,7 +50,21 @@ export function validateFinalMarketJson(finalJson) {
       if (!isNonEmptyString(outcome.winCondition)) {
         errors.push(`outcomes[${index}].winCondition must be a non-empty string`);
       }
+      if (!isNonEmptyString(outcome.resolutionCriteria)) {
+        errors.push(`outcomes[${index}].resolutionCriteria must be a non-empty string`);
+      }
     });
+  }
+  for (const key of ['marketStartTimeUTC', 'marketEndTimeUTC']) {
+    if (!isNonEmptyString(finalJson[key]) || Number.isNaN(Date.parse(finalJson[key]))) {
+      errors.push(`${key} must be a parseable timestamp`);
+    }
+  }
+  // Settlement text the finalizer prompt requires; a string or a list.
+  for (const key of ['fullResolutionRules', 'edgeCases']) {
+    if (!hasText(finalJson[key])) {
+      errors.push(`${key} must not be empty`);
+    }
   }
 
   return { valid: errors.length === 0, errors };

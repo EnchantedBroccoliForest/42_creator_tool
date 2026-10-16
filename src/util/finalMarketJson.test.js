@@ -4,7 +4,15 @@ import { validateFinalMarketJson } from './finalMarketJson.js';
 function market(outcomes, extra = {}) {
   return {
     refinedQuestion: 'Will the market cap be below $10B?',
-    outcomes: outcomes.map((name) => ({ name, winCondition: `${name} wins.` })),
+    outcomes: outcomes.map((name) => ({
+      name,
+      winCondition: `${name} wins.`,
+      resolutionCriteria: 'Read from the official filing.',
+    })),
+    marketStartTimeUTC: '2026-01-01T00:00:00Z',
+    marketEndTimeUTC: '2026-12-31T23:59:59Z',
+    fullResolutionRules: '1. Use the official filing.',
+    edgeCases: '1. Filing delayed → Other / None',
     ...extra,
   };
 }
@@ -40,25 +48,49 @@ describe('validateFinalMarketJson', () => {
     expect(validateFinalMarketJson([]).valid).toBe(false);
   });
 
-  it('requires a question and at least two named outcomes with win conditions', () => {
-    const result = validateFinalMarketJson({
-      refinedQuestion: ' ',
-      outcomes: [{ name: 'Yes' }],
-    });
-    expect(result.valid).toBe(false);
+  it('requires a question and at least two outcomes', () => {
+    const result = validateFinalMarketJson(market(['Yes'], { refinedQuestion: ' ' }));
     expect(result.errors).toEqual([
       'refinedQuestion must be a non-empty string',
       'outcomes must be an array with at least two entries',
     ]);
+  });
 
-    const missing = validateFinalMarketJson({
-      refinedQuestion: 'Q?',
-      outcomes: [{ name: 'Yes', winCondition: 'Yes wins.' }, { name: '', winCondition: 'x' }, { name: 'No' }],
-    });
-    expect(missing.errors).toEqual([
+  it('requires each outcome to have a name, win condition, and resolution criteria', () => {
+    const result = validateFinalMarketJson(market(['Yes', 'No'], {
+      outcomes: [
+        { name: 'Yes', winCondition: 'Yes wins.', resolutionCriteria: 'Filing.' },
+        { name: '', winCondition: 'x', resolutionCriteria: 'y' },
+        { name: 'No' },
+      ],
+    }));
+    expect(result.errors).toEqual([
       'outcomes[1].name must be a non-empty string',
       'outcomes[2].winCondition must be a non-empty string',
+      'outcomes[2].resolutionCriteria must be a non-empty string',
     ]);
+  });
+
+  it('requires timestamps and settlement text', () => {
+    const result = validateFinalMarketJson(market(['Yes', 'No'], {
+      marketStartTimeUTC: undefined,
+      marketEndTimeUTC: 'soon',
+      fullResolutionRules: '',
+      edgeCases: [],
+    }));
+    expect(result.errors).toEqual([
+      'marketStartTimeUTC must be a parseable timestamp',
+      'marketEndTimeUTC must be a parseable timestamp',
+      'fullResolutionRules must not be empty',
+      'edgeCases must not be empty',
+    ]);
+  });
+
+  it('accepts settlement text given as a list', () => {
+    expect(validateFinalMarketJson(market(['Yes', 'No'], {
+      fullResolutionRules: ['Use the official filing.'],
+      edgeCases: ['Filing delayed → No'],
+    })).valid).toBe(true);
   });
 
   it('rejects duplicate outcome names', () => {

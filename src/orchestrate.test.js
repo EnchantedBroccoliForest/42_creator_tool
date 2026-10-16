@@ -3,6 +3,7 @@ import { installQueryModel, resetQueryModel } from './api/openrouter.js';
 import { orchestrate } from './orchestrate.js';
 import { getSystemPrompt } from './constants/prompts.js';
 import { RIGOR_RUBRIC } from './constants/rubric.js';
+import { RunSchema } from './types/run.js';
 
 const SOURCE_URL = 'https://dead.example/feed';
 const BACKUP_SOURCE_URL = 'https://live.example/feed';
@@ -389,6 +390,28 @@ describe('orchestrate fails closed', () => {
     expect(run.criticisms).toEqual([]);
   });
 
+  it('blocks finalize when the review only reaches needs_escalation', async () => {
+    const unsure = {
+      ...passingReview(),
+      rubricVotes: RIGOR_RUBRIC.map((rule) => ({ ruleId: rule.id, verdict: 'unsure', rationale: 'Cannot tell.' })),
+    };
+    const query = makeQuery({ claimsContent: SOURCE_CLAIMS, reviewForCall: () => unsure });
+    const run = await runWith(query);
+
+    expect(query.calls.structuredReviewer).toBe(2);
+    expect(run.aggregation.overall).toBe('needs_escalation');
+    expect(run.status).toBe('blocked');
+    expect(run.gates.review).toEqual({ overall: 'needs_escalation', blocked: true });
+    expect(query.calls.finalizer).toBe(0);
+  });
+
+  it('keeps the review gate when the run is validated against RunSchema', async () => {
+    const query = makeQuery({ claimsContent: SOURCE_CLAIMS, reviewForCall: () => failingReview() });
+    const run = await runWith(query);
+
+    expect(RunSchema.parse(run).gates.review).toEqual({ overall: 'fail', blocked: true });
+  });
+
   it('gives the updater the reviewers\' reasons, not just decision labels', async () => {
     const query = makeQuery({
       claimsContent: SOURCE_CLAIMS,
@@ -425,6 +448,16 @@ describe('orchestrate fails closed', () => {
     expect(run.status).toBe('error');
     expect(run.finalJson).toBeNull();
     expect(run.log.some((e) => e.stage === 'accept' && /not valid JSON/.test(e.message))).toBe(true);
+  });
+
+  it('does not complete when the final JSON omits settlement fields', async () => {
+    const { fullResolutionRules: _rules, edgeCases: _edges, ...partial } = finalJson();
+    const query = makeQuery({ claimsContent: SOURCE_CLAIMS, finalJsonOverride: partial });
+    const run = await runWith(query);
+
+    expect(run.status).toBe('error');
+    expect(run.finalJson).toBeNull();
+    expect(run.log.some((e) => e.stage === 'accept' && /fullResolutionRules must not be empty/.test(e.message))).toBe(true);
   });
 
   it('treats a readable HTTP 404 as an unreachable source', async () => {

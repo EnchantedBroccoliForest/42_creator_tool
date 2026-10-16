@@ -374,6 +374,8 @@ export const BatchEntailmentResponseSchema = z.array(EntailmentVerdictSchema);
 // UI, from saved fixtures) remain valid without these fields.
 export const GatesSchema = z.object({
   risk: z.object({ level: z.enum(['low', 'medium', 'high']), blocked: z.boolean() }),
+  // Optional so runs persisted before the review gate existed still parse.
+  review: z.object({ overall: z.enum(['pass', 'fail', 'needs_escalation']).nullable(), blocked: z.boolean() }).optional(),
   routing: z.object({ overall: z.enum(['clean', 'needs_update', 'blocked']), blocked: z.boolean() }),
   verification: z.object({ hasHardFail: z.boolean(), blocked: z.boolean() }),
   sources: z.object({ status: z.enum(['ok', 'some_unreachable', 'all_unreachable', 'no_sources', 'error']), blocked: z.boolean() }),

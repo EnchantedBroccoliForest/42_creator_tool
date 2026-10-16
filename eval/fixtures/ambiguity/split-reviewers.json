@@ -54,7 +54,7 @@
     "expected_aggregation_overall": "needs_escalation",
     "expected_aggregation_protocol": "majority",
     "expected_routing_overall": "needs_update",
-    "expected_finalize_allowed": true,
+    "expected_finalize_allowed": false,
     "expected_blocked_by_routing": false
   }
 }
